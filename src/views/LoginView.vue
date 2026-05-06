@@ -1,7 +1,9 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import logoAgir from '../assets/logoagir .png'
 
+const router = useRouter()
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
@@ -13,6 +15,8 @@ const togglePasswordVisibility = () => {
 }
 
 const validateEmail = (emailValue) => {
+  // Accepter "admin" ou une adresse email valide
+  if (emailValue === 'admin') return true
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(emailValue)
 }
@@ -31,7 +35,7 @@ const handleLogin = async () => {
     emailError.value = 'Veuillez entrer votre identifiant'
     isValid = false
   } else if (!validateEmail(email.value)) {
-    emailError.value = 'Veuillez entrer une adresse email valide'
+    emailError.value = 'Identifiant non valide'
     isValid = false
   }
 
@@ -41,7 +45,14 @@ const handleLogin = async () => {
   }
 
   if (isValid) {
-    console.log('Connexion:', { email: email.value, password: password.value })
+    // Vérification des identifiants statiques
+    if (email.value === 'admin' && password.value === 'admin') {
+      console.log('Connexion réussie')
+      // Redirection vers le dashboard
+      router.push('/dashboard')
+    } else {
+      emailError.value = 'Identifiant ou mot de passe incorrect'
+    }
   }
 }
 
@@ -67,8 +78,8 @@ const handleKeyPress = (event) => {
             <input
               id="email"
               v-model="email"
-              type="email"
-              placeholder="email"
+              type="text"
+              placeholder="admin"
               class="form-input"
               @keypress="handleKeyPress"
               @focus="emailError = ''"
