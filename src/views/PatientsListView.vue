@@ -91,6 +91,9 @@
     <!-- Filtre par catégorie -->
     <CategoryFilter v-model="filterCategory" />
 
+    <!-- Filtre par priorité -->
+    <PriorityFilter v-model="filterPriority" />
+
     <!-- Tableau -->
     <PatientsTable
       :patients="paginatedPatients"
@@ -119,10 +122,12 @@ import { useRouter } from 'vue-router'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import FilterPill from '@/components/ui/FilterPill.vue'
 import CategoryFilter from '@/components/ui/CategoryFilter.vue'
+import PriorityFilter from '@/components/ui/PriorityFilter.vue'
 import PatientsTable from '@/components/patients/PatientsTable.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 
 import { mockPatients } from '@/data/mockPatients.js'
+import { PATIENT_PROFILS } from '@/data/mockPatientProfils.js'
 
 const router = useRouter()
 
@@ -133,6 +138,7 @@ const searchQuery = ref('')
 const filterEtage = ref('')
 const filterAS = ref('')
 const filterCategory = ref(null)
+const filterPriority = ref(null)
 const filterQuick = ref('all')
 
 // Tri
@@ -170,6 +176,14 @@ const filteredPatients = computed(() => {
   // Filtre catégorie
   if (filterCategory.value) {
     result = result.filter(p => p.categorie === filterCategory.value)
+  }
+
+  // Filtre priorité
+  if (filterPriority.value) {
+    result = result.filter(p => {
+      const profil = PATIENT_PROFILS[p.profil]
+      return profil && profil.priorite === filterPriority.value
+    })
   }
 
   // Filtres rapides
@@ -219,7 +233,7 @@ const countByEtage = (etage) =>
   patients.value.filter(p => p.etage === etage).length
 
 // Reset page quand on filtre
-watch([searchQuery, filterEtage, filterAS, filterCategory, filterQuick], () => {
+watch([searchQuery, filterEtage, filterAS, filterCategory, filterPriority, filterQuick], () => {
   currentPage.value = 1
 })
 

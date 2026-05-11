@@ -13,6 +13,7 @@
           <th>Prénom</th>
           <th>Catégorie</th>
           <th>Profil</th>
+          <th>Priorité</th>
           <th>Temps moyen WC</th>
           <th>Temps moyen coucher</th>
           <th>Alertes</th>
@@ -29,6 +30,9 @@
           </td>
           <td class="profil-cell">
             <ProfilBadge :profil-id="patient.profil" />
+          </td>
+          <td class="priority-cell">
+            <PriorityBadge :priority="getPatientPriority(patient.profil)" />
           </td>
           <td class="temps-cell">
             <span v-if="patient.tempsWCMoyen > 0">{{ patient.tempsWCMoyen }} min</span>
@@ -58,7 +62,8 @@
 <script setup>
 import CategoryBadge from '@/components/ui/CategoryBadge.vue'
 import ProfilBadge from '@/components/ui/ProfilBadge.vue'
-import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
+import PriorityBadge from '@/components/ui/PriorityBadge.vue'
+import { PATIENT_CATEGORIES, PATIENT_PROFILS } from '@/data/mockPatientProfils.js'
 
 defineProps({
   patients: { type: Array, required: true },
@@ -70,6 +75,11 @@ defineEmits(['open-patient', 'sort'])
 
 function getCategoryColor(categoryId) {
   return PATIENT_CATEGORIES[categoryId]?.color || '#9CA3AF'
+}
+
+function getPatientPriority(profilId) {
+  const profil = PATIENT_PROFILS[profilId]
+  return profil ? profil.priorite : 'normale'
 }
 </script>
 
@@ -147,6 +157,10 @@ td {
 }
 
 .profil-cell {
+  font-size: 12px;
+}
+
+.priority-cell {
   font-size: 12px;
 }
 

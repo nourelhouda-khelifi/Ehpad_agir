@@ -13,6 +13,7 @@
         </span>
         <CategoryBadge :category-id="patient.categorie" />
         <ProfilBadge :profil-id="patient.profil" />
+        <PriorityBadge :priority="patientPriority" />
       </div>
     </div>
     <div class="header-actions">
@@ -27,7 +28,8 @@ import { computed } from 'vue'
 import PatientAvatar from '@/components/ui/PatientAvatar.vue'
 import CategoryBadge from '@/components/ui/CategoryBadge.vue'
 import ProfilBadge from '@/components/ui/ProfilBadge.vue'
-import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
+import PriorityBadge from '@/components/ui/PriorityBadge.vue'
+import { PATIENT_CATEGORIES, PATIENT_PROFILS } from '@/data/mockPatientProfils.js'
 
 const props = defineProps({
   patient: { type: Object, required: true }
@@ -35,6 +37,11 @@ const props = defineProps({
 
 const categoryColor = computed(() => {
   return PATIENT_CATEGORIES[props.patient.categorie]?.color || '#9CA3AF'
+})
+
+const patientPriority = computed(() => {
+  const profil = PATIENT_PROFILS[props.patient.profil]
+  return profil ? profil.priorite : 'normale'
 })
 </script>
 
