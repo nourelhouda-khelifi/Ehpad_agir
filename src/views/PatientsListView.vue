@@ -88,6 +88,9 @@
       </FilterPill>
     </div>
 
+    <!-- Filtre par catégorie -->
+    <CategoryFilter v-model="filterCategory" />
+
     <!-- Tableau -->
     <PatientsTable
       :patients="paginatedPatients"
@@ -115,6 +118,7 @@ import { useRouter } from 'vue-router'
 
 import SearchInput from '@/components/ui/SearchInput.vue'
 import FilterPill from '@/components/ui/FilterPill.vue'
+import CategoryFilter from '@/components/ui/CategoryFilter.vue'
 import PatientsTable from '@/components/patients/PatientsTable.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 
@@ -128,6 +132,7 @@ const patients = ref(mockPatients)
 const searchQuery = ref('')
 const filterEtage = ref('')
 const filterAS = ref('')
+const filterCategory = ref(null)
 const filterQuick = ref('all')
 
 // Tri
@@ -160,6 +165,11 @@ const filteredPatients = computed(() => {
   // Filtre AS dropdown
   if (filterAS.value) {
     result = result.filter(p => p.asReferent === filterAS.value)
+  }
+
+  // Filtre catégorie
+  if (filterCategory.value) {
+    result = result.filter(p => p.categorie === filterCategory.value)
   }
 
   // Filtres rapides
@@ -209,7 +219,7 @@ const countByEtage = (etage) =>
   patients.value.filter(p => p.etage === etage).length
 
 // Reset page quand on filtre
-watch([searchQuery, filterEtage, filterAS, filterQuick], () => {
+watch([searchQuery, filterEtage, filterAS, filterCategory, filterQuick], () => {
   currentPage.value = 1
 })
 

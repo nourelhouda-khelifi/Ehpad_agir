@@ -1,5 +1,5 @@
 <template>
-  <div class="patient-header">
+  <div class="patient-header" :style="{ borderLeftColor: categoryColor, borderLeftWidth: '4px' }">
     <PatientAvatar :nom="patient.nom" :prenom="patient.prenom" :size="64" />
     <div class="patient-info">
       <h1 class="patient-name">
@@ -11,6 +11,8 @@
         <span class="tag tag-status">
           {{ patient.statut === 'hospitalise' ? '🏥 Hospitalisée' : 'Standard' }}
         </span>
+        <CategoryBadge :category-id="patient.categorie" />
+        <ProfilBadge :profil-id="patient.profil" />
       </div>
     </div>
     <div class="header-actions">
@@ -21,10 +23,18 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import PatientAvatar from '@/components/ui/PatientAvatar.vue'
+import CategoryBadge from '@/components/ui/CategoryBadge.vue'
+import ProfilBadge from '@/components/ui/ProfilBadge.vue'
+import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 
-defineProps({
+const props = defineProps({
   patient: { type: Object, required: true }
+})
+
+const categoryColor = computed(() => {
+  return PATIENT_CATEGORIES[props.patient.categorie]?.color || '#9CA3AF'
 })
 </script>
 

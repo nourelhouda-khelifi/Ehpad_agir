@@ -11,6 +11,8 @@
           </th>
           <th>Nom</th>
           <th>Prénom</th>
+          <th>Catégorie</th>
+          <th>Profil</th>
           <th>Temps moyen WC</th>
           <th>Temps moyen coucher</th>
           <th>Alertes</th>
@@ -18,10 +20,16 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="patient in patients" :key="patient.id" class="patient-row">
+        <tr v-for="patient in patients" :key="patient.id" class="patient-row" :style="{ borderLeftColor: getCategoryColor(patient.categorie), borderLeftWidth: '3px' }">
           <td class="chamber">{{ patient.chambre }}</td>
           <td>{{ patient.nom }}</td>
           <td>{{ patient.prenom }}</td>
+          <td class="category-cell">
+            <CategoryBadge :category-id="patient.categorie" />
+          </td>
+          <td class="profil-cell">
+            <ProfilBadge :profil-id="patient.profil" />
+          </td>
           <td class="temps-cell">
             <span v-if="patient.tempsWCMoyen > 0">{{ patient.tempsWCMoyen }} min</span>
             <span v-else class="no-data">-</span>
@@ -48,6 +56,10 @@
 </template>
 
 <script setup>
+import CategoryBadge from '@/components/ui/CategoryBadge.vue'
+import ProfilBadge from '@/components/ui/ProfilBadge.vue'
+import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
+
 defineProps({
   patients: { type: Array, required: true },
   sortKey: { type: String, default: 'chambre' },
@@ -55,6 +67,10 @@ defineProps({
 })
 
 defineEmits(['open-patient', 'sort'])
+
+function getCategoryColor(categoryId) {
+  return PATIENT_CATEGORIES[categoryId]?.color || '#9CA3AF'
+}
 </script>
 
 <style scoped>
@@ -124,6 +140,14 @@ td {
   font-weight: 700;
   color: #2563EB;
   font-size: 13px;
+}
+
+.category-cell {
+  font-size: 12px;
+}
+
+.profil-cell {
+  font-size: 12px;
 }
 
 .etage-badge {

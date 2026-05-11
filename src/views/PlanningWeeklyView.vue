@@ -99,6 +99,7 @@
             `etage-${patient.etage}`,
             { 'is-warning': isPatientSansDouche(patient.id) }
           ]"
+          :style="{ borderLeftColor: getCategoryColor(patient.categorie), borderLeftWidth: '3px' }"
         >
           <div class="patient-cell">
             <div class="patient-name" :class="{ 'has-warning': isPatientSansDouche(patient.id) }">
@@ -147,6 +148,7 @@ import ASSelectorModal from '@/components/planning/ASSelectorModal.vue'
 import { mockPatients } from '@/data/mockPatients.js'
 import { mockAidesSoignants } from '@/data/mockAides.js'
 import { clonePlanning, createEmptyPlanningForPatients, mockPlanningSemaine19 } from '@/data/mockPlanning.js'
+import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 import { useCharge } from '@/composables/useCharge.js'
 
 const patients = ref(mockPatients)
@@ -246,6 +248,10 @@ const countByAS = (asCode) => {
 }
 
 const sansDoucheCount = computed(() => patients.value.filter((patient) => isPatientSansDouche(patient.id)).length)
+
+const getCategoryColor = (categoryId) => {
+  return PATIENT_CATEGORIES[categoryId]?.color || '#9CA3AF'
+}
 
 const patientsFiltres = computed(() => {
   return patients.value.filter((patient) => {
