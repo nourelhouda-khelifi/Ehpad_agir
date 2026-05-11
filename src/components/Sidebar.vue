@@ -3,6 +3,15 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
+defineProps({
+  isOpen: {
+    type: Boolean,
+    default: false
+  }
+})
+
+defineEmits(['close'])
+
 const menuItems = [
   { name: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { name: 'patients', path: '/patients', label: 'Patients', icon: 'patients' },
@@ -22,10 +31,17 @@ const icons = {
 const handleLogout = () => {
   router.push('/login')
 }
+
+const handleNavigation = () => {
+  // Fermer la sidebar sur mobile après navigation
+  if (window.innerWidth <= 1024) {
+    this.$emit('close')
+  }
+}
 </script>
 
 <template>
-  <aside class="sidebar">
+  <aside class="sidebar" :class="{ 'sidebar-open': isOpen }">
     <!-- User Info Section -->
     <div class="sidebar-header">
       <div class="user-info">
@@ -45,6 +61,7 @@ const handleLogout = () => {
         :to="item.path"
         class="nav-item"
         active-class="nav-item-active"
+        @click="$emit('close')"
       >
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <g v-html="icons[item.icon]" />
@@ -288,12 +305,88 @@ const handleLogout = () => {
   flex-shrink: 0;
 }
 
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 228px;
+    height: 100vh;
+    z-index: 100;
+    transform: translateX(-100%);
+    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar {
-    position: static;
+    width: 240px;
+  }
+
+  .sidebar-header {
+    padding: 1.25rem;
+  }
+
+  .user-avatar {
+    width: 75px;
+    height: 75px;
+  }
+
+  .user-name {
+    font-size: 14px;
+  }
+
+  .user-role {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
     width: 100%;
-    height: auto;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    max-width: 280px;
+  }
+
+  .sidebar-header {
+    padding: 1rem;
+  }
+
+  .user-avatar {
+    width: 64px;
+    height: 64px;
+  }
+
+  .user-name {
+    font-size: 13px;
+  }
+
+  .sidebar-nav {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .nav-item {
+    padding: 0.65rem 0.8rem;
+    font-size: 13px;
+  }
+
+  .nav-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar-footer {
+    padding: 1rem;
   }
 }
 </style>
