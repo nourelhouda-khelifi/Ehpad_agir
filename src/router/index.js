@@ -6,7 +6,6 @@ import PatientProfileView from '../views/PatientProfileView.vue'
 import PlanningWeeklyView from '../views/PlanningWeeklyView.vue'
 import PlanningDailyView from '../views/PlanningDailyView.vue'
 import AidesSoignantsView from '../views/AidesSoignantsView.vue'
-import StatsView from '../views/StatsView.vue'
 
 const routes = [
   {
@@ -47,11 +46,6 @@ const routes = [
     path: '/aides-soignants',
     name: 'AidesSoignants',
     component: AidesSoignantsView
-  },
-  {
-    path: '/statistiques',
-    name: 'Statistiques',
-    component: StatsView
   }
 ]
 

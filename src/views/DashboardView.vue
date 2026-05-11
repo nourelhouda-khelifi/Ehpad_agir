@@ -122,12 +122,21 @@
         <template #actions>
           <span class="section-meta">Semaine 19</span>
         </template>
-        <ChargeASList :aides="aidesSoignants" />
+        <ChargeASList :aides="aidesSoignants" :charge-par-periode="mockChargePeriode" />
       </SectionCard>
       <SectionCard title="Répartition des soins" icon="🥧">
         <RepartitionChart :data="repartitionData" />
       </SectionCard>
     </div>
+
+    <!-- Graphique charge AS -->
+    <SectionCard title="Charge des AS sur la semaine" icon="📊">
+      <BarChart
+        :jours="chargeAS.jours"
+        :series="seriesCharge"
+        :threshold="120"
+      />
+    </SectionCard>
 
     <!-- Alertes -->
     <SectionCard title="Alertes critiques" icon="🚨">
@@ -158,11 +167,14 @@ import { useRouter } from 'vue-router'
 import KPICard from '@/components/ui/KPICard.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 import AlertCard from '@/components/ui/AlertCard.vue'
+import BarChart from '@/components/stats/BarChart.vue'
 import ChargeASList from '@/components/dashboard/ChargeASList.vue'
 import RepartitionChart from '@/components/dashboard/RepartitionChart.vue'
 import { mockAidesSoignants } from '@/data/mockAides.js'
 import { mockPatients } from '@/data/mockPatients.js'
 import { mockAlertes } from '@/data/mockAlertes.js'
+import { mockChargeASSemaine } from '@/data/mockStats.js'
+import { mockChargePeriode } from '@/data/mockChargeJour.js'
 
 const router = useRouter()
 const aidesSoignants = ref(mockAidesSoignants)
@@ -188,6 +200,24 @@ const rapportData = ref({
   etage1: 20,
   etage2: 30,
   etage3: 20,
+})
+
+// Charge AS
+const chargeAS = ref(mockChargeASSemaine)
+
+const seriesCharge = computed(() => {
+  const colors = {
+    SE1: '#97C459',
+    SE2: '#E24B4A',
+    SC1: '#378ADD',
+    SC2: '#5DCAA5',
+    SG: '#888780'
+  }
+  return Object.entries(chargeAS.value.data).map(([code, values]) => ({
+    code,
+    color: colors[code],
+    values
+  }))
 })
 
 const handleAlerte = (alerte) => {

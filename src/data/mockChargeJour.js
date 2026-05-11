@@ -7,6 +7,24 @@ export const mockChargeJour = {
   SG: { lundi: 25, mardi: 20, mercredi: 45, jeudi: 25, vendredi: 30, samedi: 15, dimanche: 10 }
 }
 
+// Charge par période (matin: 06h-14h, soir: 14h-22h)
+export const mockChargePeriode = {
+  matin: {
+    SE1: 35,
+    SE2: 70,
+    SC1: 40,
+    SC2: 28,
+    SG: 15
+  },
+  soir: {
+    SE1: 40,
+    SE2: 65,
+    SC1: 38,
+    SC2: 32,
+    SG: 18
+  }
+}
+
 // Patients gérés par chaque AS (pour le détail)
 export const mockPatientsParAS = {
   SE1: [

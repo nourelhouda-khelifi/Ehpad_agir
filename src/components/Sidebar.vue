@@ -8,8 +8,7 @@ const menuItems = [
   { name: 'patients', path: '/patients', label: 'Patients', icon: 'patients' },
   { name: 'planning-douches', path: '/planning/douches', label: 'Douches', badge: 3, icon: 'douches' },
   { name: 'planning-daily', path: '/planning/quotidien', label: 'Planning jour', icon: 'planning' },
-  { name: 'aides-soignants', path: '/aides-soignants', label: 'Équipe AS', icon: 'team' },
-  { name: 'stats', path: '/statistiques', label: 'Statistiques', icon: 'stats' }
+  { name: 'aides-soignants', path: '/aides-soignants', label: 'Équipe AS', icon: 'team' }
 ]
 
 const icons = {
@@ -17,8 +16,7 @@ const icons = {
   patients: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
   douches: '<path d="M4 4h16v1H4zM6 6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6M9 10h6" />',
   planning: '<rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />',
-  team: '<path d="M17 21v-2a4 4 0 0 0-5-3.87M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />',
-  stats: '<line x1="12" y1="2" x2="12" y2="22" /><path d="M17 5H9.5a1.5 1.5 0 0 0-1.5 1.5v12a1.5 1.5 0 0 0 1.5 1.5H17" /><path d="M7 12H3.5a1.5 1.5 0 0 1-1.5-1.5V5.5A1.5 1.5 0 0 1 3.5 4H7" />'
+  team: '<path d="M17 21v-2a4 4 0 0 0-5-3.87M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />'
 }
 
 const handleLogout = () => {
