@@ -46,6 +46,50 @@ export const mockPatients = [
       dimanche: null
     },
 
+    // Planning WC semaine 19
+    wcs: {
+      lundi: null,
+      mardi: 'SE1',
+      mercredi: null,
+      jeudi: null,
+      vendredi: null,
+      samedi: null,
+      dimanche: null
+    },
+
+    // Planning Toilette semaine 19
+    toilettes: {
+      lundi: null,
+      mardi: null,
+      mercredi: 'SC1',
+      jeudi: null,
+      vendredi: null,
+      samedi: null,
+      dimanche: null
+    },
+
+    // Planning Coucher semaine 19
+    couchers: {
+      lundi: null,
+      mardi: null,
+      mercredi: null,
+      jeudi: 'SE2',
+      vendredi: null,
+      samedi: null,
+      dimanche: null
+    },
+
+    // Planning Repas semaine 19
+    repas: {
+      lundi: null,
+      mardi: null,
+      mercredi: null,
+      jeudi: null,
+      vendredi: 'SC2',
+      samedi: null,
+      dimanche: null
+    },
+
     // Commentaires/notes
     notes: [
       { id: 1, date: '2026-05-04', auteur: 'Sophie P.', contenu: 'Pb pour la douche', important: true },
@@ -88,6 +132,26 @@ export const mockPatients = [
     tempsCoucherL: 0,
     tempsCoucherV: 0,
     douches: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
+
+    // Planning WC semaine 19
+    wcs: {
+      lundi: null,
+      mardi: 'SE2',
+      mercredi: null,
+      jeudi: null,
+      vendredi: null,
+      samedi: null,
+      dimanche: null
+    },
+
+    // Planning Toilette semaine 19
+    toilettes: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
+
+    // Planning Coucher semaine 19
+    couchers: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
+
+    // Planning Repas semaine 19
+    repas: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
     notes: [],
     historique: []
   },
@@ -120,6 +184,26 @@ export const mockPatients = [
     tempsCoucherL: 0,
     tempsCoucherV: 0,
     douches: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
+
+    // Planning WC semaine 19
+    wcs: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
+
+    // Planning Toilette semaine 19
+    toilettes: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
+
+    // Planning Coucher semaine 19
+    couchers: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
+
+    // Planning Repas semaine 19
+    repas: {
+      lundi: null,
+      mardi: null,
+      mercredi: 'SC1',
+      jeudi: null,
+      vendredi: null,
+      samedi: null,
+      dimanche: null
+    },
     notes: [
       { id: 1, date: '2026-05-03', auteur: 'Sophie P.', contenu: '"tombe" trop lourde pour lève-personne', important: true }
     ],

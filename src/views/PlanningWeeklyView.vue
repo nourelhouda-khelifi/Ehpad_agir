@@ -2,7 +2,7 @@
   <div class="planning-view">
     <div class="page-title-bar">
       <div>
-        <h1 class="page-title">Planning des douches</h1>
+        <h1 class="page-title">Planning des activités</h1>
         <p class="page-subtitle">{{ weekLabel }}</p>
       </div>
       <div class="page-actions">
@@ -10,6 +10,23 @@
         <button class="btn btn-secondary" @click="goToCurrentWeek">Cette semaine</button>
         <button class="btn btn-secondary" @click="nextWeek">Suivant ›</button>
         <button class="btn btn-primary">📥 Export</button>
+      </div>
+    </div>
+
+    <!-- Filtre d'activité -->
+    <div class="activity-filter-bar">
+      <span class="filter-label">Activité :</span>
+      <div class="activity-pills">
+        <button
+          v-for="(config, key) in activitiesConfig"
+          :key="key"
+          class="activity-pill"
+          :class="{ 'is-active': selectedActivity === key }"
+          @click="selectedActivity = key"
+          :style="{ borderColor: config.color, backgroundColor: selectedActivity === key ? config.color + '20' : 'transparent' }"
+        >
+          {{ config.icon }} {{ config.label }}
+        </button>
       </div>
     </div>
 
@@ -38,8 +55,8 @@
       >
         {{ code }}
       </FilterPill>
-      <FilterPill :active="filterSansDouche" :count="sansDoucheCount" variant="danger" @click="filterSansDouche = !filterSansDouche">
-        ⚠️ Sans douche
+      <FilterPill :active="filterSansDouche" :count="patientsWithoutActivity.length" variant="danger" @click="filterSansDouche = !filterSansDouche">
+        ⚠️ Sans {{ activitiesConfig[selectedActivity].label.toLowerCase() }}
       </FilterPill>
     </div>
 
@@ -90,15 +107,15 @@
             </div>
             <div class="patient-room">
               {{ patient.chambre }}
-              <span v-if="isPatientSansDouche(patient.id)" class="warning-text">— sans douche</span>
+              <span v-if="isPatientSansDouche(patient.id)" class="warning-text">— sans {{ activitiesConfig[selectedActivity].label.toLowerCase() }}</span>
             </div>
           </div>
 
           <PlanningCell
             v-for="jour in jours"
             :key="jour.key"
-            :as-code="currentPlanning[patient.id]?.[jour.key]"
-            :is-warning="isPatientSansDouche(patient.id) && !currentPlanning[patient.id]?.[jour.key]"
+            :as-code="currentPlanning[patient.id]?.[jour.key]?.as"
+            :is-warning="isPatientSansDouche(patient.id) && !currentPlanning[patient.id]?.[jour.key]?.as"
             @click="openModal(patient, jour.key)"
           />
         </div>
@@ -110,7 +127,7 @@
       :patient-nom="formatName(modalPatient)"
       :jour="modalJour"
       :semaine="currentWeek"
-      :as-actuel="currentPlanning[modalPatient.id]?.[modalJour]"
+      :as-actuel="currentPlanning[modalPatient.id]?.[modalJour]?.as"
       :aides-avec-charge="aidesSoignantsAvecCharge"
       :recommandation="recommanderAS"
       @close="closeModal"
@@ -141,9 +158,19 @@ const currentWeek = ref(19)
 const filterEtage = ref('all')
 const filterAS = ref('all')
 const filterSansDouche = ref(false)
+const selectedActivity = ref('douche')
 const modalOpen = ref(false)
 const modalPatient = ref(null)
 const modalJour = ref(null)
+
+// Configuration des activités
+const activitiesConfig = ref({
+  douche: { icon: '🛁', label: 'Douche', color: '#3B82F6' },
+  wc: { icon: '🚽', label: 'WC', color: '#8B5CF6' },
+  toilette: { icon: '🚿', label: 'Toilette', color: '#06B6D4' },
+  coucher: { icon: '🌙', label: 'Coucher', color: '#F59E0B' },
+  repas: { icon: '🍽️', label: 'Repas', color: '#10B981' }
+})
 
 const baseWeekStart = new Date(2026, 4, 11)
 const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
@@ -193,14 +220,26 @@ const countEtage = (etage) => patients.value.filter((patient) => patient.etage =
 const rowHasAS = (patientId, asCode) => {
   const planningPatient = currentPlanning.value[patientId]
   if (!planningPatient) return false
-  return Object.values(planningPatient).includes(asCode)
+  return Object.values(planningPatient).some(cell => {
+    const cellAS = typeof cell === 'string' ? cell : cell?.as
+    return cellAS === asCode
+  })
 }
 
 const isPatientSansDouche = (patientId) => {
   const planningPatient = currentPlanning.value[patientId]
   if (!planningPatient) return true
-  return Object.values(planningPatient).every((value) => !value)
+  return Object.values(planningPatient).every((cell) => !cell || !cell.activity || cell.activity !== selectedActivity.value)
 }
+
+const patientsWithoutActivity = computed(() => {
+  return patients.value.filter((patient) => {
+    if (!isPatientSansDouche(patient.id)) return false
+    if (filterEtage.value !== 'all' && patient.etage !== Number(filterEtage.value)) return false
+    if (filterAS.value !== 'all' && patient.asReferent !== filterAS.value) return false
+    return true
+  })
+})
 
 const countByAS = (asCode) => {
   return patients.value.filter((patient) => rowHasAS(patient.id, asCode)).length
@@ -253,7 +292,7 @@ const closeModal = () => {
 const ensurePatientPlanning = (patientId) => {
   if (!currentPlanning.value[patientId]) {
     currentPlanning.value[patientId] = joursSemaine.reduce((acc, jour) => {
-      acc[jour] = null
+      acc[jour] = { as: null, activity: null }
       return acc
     }, {})
   }
@@ -262,14 +301,14 @@ const ensurePatientPlanning = (patientId) => {
 const handleAssign = (codeAS) => {
   if (!modalPatient.value || !modalJour.value) return
   ensurePatientPlanning(modalPatient.value.id)
-  currentPlanning.value[modalPatient.value.id][modalJour.value] = codeAS
+  currentPlanning.value[modalPatient.value.id][modalJour.value] = { as: codeAS, activity: selectedActivity.value }
   closeModal()
 }
 
 const handleRemove = () => {
   if (!modalPatient.value || !modalJour.value) return
   ensurePatientPlanning(modalPatient.value.id)
-  currentPlanning.value[modalPatient.value.id][modalJour.value] = null
+  currentPlanning.value[modalPatient.value.id][modalJour.value] = { as: null, activity: null }
   closeModal()
 }
 </script>
@@ -355,6 +394,57 @@ const handleRemove = () => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* Activity filter bar */
+.activity-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: white;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-xs);
+}
+
+.filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.activity-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.activity-pill {
+  padding: 6px 12px;
+  border: 1.5px solid var(--color-border-light);
+  border-radius: 20px;
+  background: white;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.activity-pill:hover {
+  border-color: var(--color-primary);
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.activity-pill.is-active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
 }
 
 .as-charges-summary {

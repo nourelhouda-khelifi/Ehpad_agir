@@ -9,8 +9,10 @@ export function useCharge(planning) {
     const patientsUniques = new Set()
 
     Object.entries(planningData || {}).forEach(([patientId, jours]) => {
-      Object.values(jours || {}).forEach((asAssigne) => {
-        if (asAssigne === codeAS) {
+      Object.values(jours || {}).forEach((cellData) => {
+        // Support both old format (string) and new format ({ as, activity })
+        const asCode = typeof cellData === 'string' ? cellData : cellData?.as
+        if (asCode === codeAS) {
           totalMinutes += DUREE_DOUCHE
           nbDouches += 1
           patientsUniques.add(patientId)

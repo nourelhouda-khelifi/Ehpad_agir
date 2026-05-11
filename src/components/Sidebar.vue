@@ -6,7 +6,7 @@ const router = useRouter()
 const menuItems = [
   { name: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { name: 'patients', path: '/patients', label: 'Patients', icon: 'patients' },
-  { name: 'planning-douches', path: '/planning/douches', label: 'Douches', badge: 3, icon: 'douches' },
+  { name: 'planning-activites', path: '/planning/douches', label: 'Activités', badge: 3, icon: 'douches' },
   { name: 'planning-daily', path: '/planning/quotidien', label: 'Planning jour', icon: 'planning' },
   { name: 'aides-soignants', path: '/aides-soignants', label: 'Équipe AS', icon: 'team' }
 ]
