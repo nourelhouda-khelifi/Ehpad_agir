@@ -35,7 +35,7 @@
       <div class="stat-item">
         <span class="stat-icon">📋</span>
         <div>
-          <div class="stat-value">{{ soins.length }}</div>
+          <div class="stat-value">{{ filteredSoins.length }}</div>
           <div class="stat-label">Soins planifiés</div>
         </div>
       </div>
@@ -59,6 +59,30 @@
           <div class="stat-value">{{ asEnSurcharge.join(', ') }}</div>
           <div class="stat-label">AS en surcharge</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Filtre d'activités -->
+    <div class="filter-bar">
+      <span class="filter-title">Filtrer par activité :</span>
+      <div class="filter-pills">
+        <button
+          class="filter-pill"
+          :class="{ 'is-active': filterType === 'all' }"
+          @click="filterType = 'all'"
+        >
+          Tous
+        </button>
+        <button
+          v-for="(config, key) in typesSoins"
+          :key="key"
+          class="filter-pill"
+          :class="{ 'is-active': filterType === key }"
+          @click="filterType = key"
+          :style="{ borderColor: config.color, backgroundColor: filterType === key ? config.color + '20' : 'transparent' }"
+        >
+          {{ config.icon }} {{ config.label }}
+        </button>
       </div>
     </div>
 
@@ -150,8 +174,15 @@ import SoinCard from '@/components/planning/SoinCard.vue'
 const soins = ref(mockSoinsJour)
 const currentDate = ref(new Date('2026-05-13'))
 const viewMode = ref('as')
+const filterType = ref('all')
 
 const typesSoins = TYPES_SOINS
+
+// Soins filtrés selon le type sélectionné
+const filteredSoins = computed(() => {
+  if (filterType.value === 'all') return soins.value
+  return soins.value.filter(s => s.type === filterType.value)
+})
 
 // Date label
 const dateLabel = computed(() => {
@@ -163,7 +194,7 @@ const dateLabel = computed(() => {
 // Calcul de la charge dynamique pour cette journée
 const aidesSoignantsAvecCharge = computed(() => {
   return mockAidesSoignants.map(as => {
-    const soinsAS = soins.value.filter(s => s.asCode === as.code)
+    const soinsAS = filteredSoins.value.filter(s => s.asCode === as.code)
     const totalMinutes = soinsAS.reduce((sum, s) => sum + s.duree, 0)
 
     let niveau = 'leger'
@@ -182,11 +213,11 @@ const aidesSoignantsAvecCharge = computed(() => {
 
 // Stats globales
 const totalMinutes = computed(() =>
-  soins.value.reduce((sum, s) => sum + s.duree, 0)
+  filteredSoins.value.reduce((sum, s) => sum + s.duree, 0)
 )
 
 const patientsConcernes = computed(() =>
-  new Set(soins.value.map(s => s.patientId)).size
+  new Set(filteredSoins.value.map(s => s.patientId)).size
 )
 
 const asEnSurcharge = computed(() =>
@@ -197,13 +228,13 @@ const asEnSurcharge = computed(() =>
 
 // Filtrer les soins par AS
 const getSoinsByAS = (code) => {
-  return soins.value.filter(s => s.asCode === code)
+  return filteredSoins.value.filter(s => s.asCode === code)
 }
 
 // Vue par patient
 const patientsAvecSoins = computed(() => {
   const map = new Map()
-  soins.value.forEach(s => {
+  filteredSoins.value.forEach(s => {
     if (!map.has(s.patientId)) {
       map.set(s.patientId, {
         id: s.patientId,
@@ -216,7 +247,7 @@ const patientsAvecSoins = computed(() => {
 })
 
 const getSoinsByPatientAndPeriod = (patientId, period) => {
-  return soins.value.filter(s => {
+  return filteredSoins.value.filter(s => {
     if (s.patientId !== patientId) return false
     const heure = parseInt(s.heure.split(':')[0])
     if (period === 'matin') return heure >= 7 && heure < 12
@@ -365,6 +396,57 @@ const handleAddSoin = (asCode) => {
   justify-content: center;
   background: var(--color-bg-secondary);
   border-radius: var(--radius-md);
+}
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  flex-wrap: wrap;
+}
+
+.filter-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.filter-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-pill {
+  padding: 6px 12px;
+  border: 1.5px solid var(--color-border-light);
+  border-radius: 20px;
+  background: white;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.filter-pill:hover {
+  border-color: var(--color-primary);
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.filter-pill.is-active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
 }
 
 .stat-item.is-warning .stat-icon {

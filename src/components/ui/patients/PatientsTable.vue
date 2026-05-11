@@ -10,9 +10,9 @@
         Nom Prénom
         <span class="sort-icon">{{ getSortIcon('nom') }}</span>
       </div>
-      <div class="th col-etage">Étage</div>
-      <div class="th col-as">AS Référent</div>
       <div class="th col-soin">Prochain soin</div>
+      <div class="th col-wc">Temps moyen WC</div>
+      <div class="th col-coucher">Temps moyen coucher</div>
       <div class="th col-alertes">Alertes</div>
       <div class="th col-actions">Actions</div>
     </div>
@@ -39,11 +39,6 @@
           {{ formatName(patient) }}
         </div>
       </div>
-      <div class="td col-etage">B34 - {{ patient.etage === 1 ? '1er' : '2ème' }}</div>
-      <div class="td col-as">
-        <ASBadge v-if="patient.asReferent" :code="patient.asReferent" />
-        <span v-else class="empty-value">—</span>
-      </div>
       <div class="td col-soin">
         <span v-if="patient.sansDouche" class="text-danger">
           ⚠️ Sans douche
@@ -51,6 +46,18 @@
         <span v-else-if="patient.prochainSoin" class="text-secondary">
           {{ getIconSoin(patient.prochainSoin.type) }}
           {{ patient.prochainSoin.jour }} {{ patient.prochainSoin.heure }}
+        </span>
+        <span v-else class="empty-value">—</span>
+      </div>
+      <div class="td col-wc">
+        <span v-if="patient.tempsWCMoyen > 0" class="text-secondary">
+          {{ patient.tempsWCMoyen }} min
+        </span>
+        <span v-else class="empty-value">—</span>
+      </div>
+      <div class="td col-coucher">
+        <span v-if="patient.tempsCoucherMoyen > 0" class="text-secondary">
+          {{ patient.tempsCoucherMoyen }} min
         </span>
         <span v-else class="empty-value">—</span>
       </div>
@@ -124,7 +131,7 @@ const getSortIcon = (key) => {
 .table-header,
 .table-row {
   display: grid;
-  grid-template-columns: 100px 1fr 110px 110px 160px 110px 90px;
+  grid-template-columns: 100px 1fr 160px 130px 150px 110px 90px;
   align-items: center;
 }
 
@@ -208,6 +215,14 @@ const getSortIcon = (key) => {
 .col-etage {
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+
+/* WC and Coucher columns */
+.col-wc,
+.col-coucher {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-align: center;
 }
 
 /* Soin column */

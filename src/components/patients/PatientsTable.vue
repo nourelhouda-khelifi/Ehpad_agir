@@ -11,13 +11,8 @@
           </th>
           <th>Nom</th>
           <th>Prénom</th>
-          <th @click="$emit('sort', 'etage')" class="sortable">
-            Étage
-            <span v-if="sortKey === 'etage'" class="sort-indicator">
-              {{ sortOrder === 'asc' ? '↑' : '↓' }}
-            </span>
-          </th>
-          <th>Statut</th>
+          <th>Temps moyen WC</th>
+          <th>Temps moyen coucher</th>
           <th>Alertes</th>
           <th>Actions</th>
         </tr>
@@ -27,15 +22,13 @@
           <td class="chamber">{{ patient.chambre }}</td>
           <td>{{ patient.nom }}</td>
           <td>{{ patient.prenom }}</td>
-          <td class="etage-badge">
-            <span class="badge" :class="`badge-etage-${patient.etage}`">
-              {{ patient.etage === 1 ? '1er étage' : '2ème étage' }}
-            </span>
+          <td class="temps-cell">
+            <span v-if="patient.tempsWCMoyen > 0">{{ patient.tempsWCMoyen }} min</span>
+            <span v-else class="no-data">-</span>
           </td>
-          <td>
-            <span class="status-badge" :class="`status-${patient.statut}`">
-              {{ patient.statut }}
-            </span>
+          <td class="temps-cell">
+            <span v-if="patient.tempsCoucherMoyen > 0">{{ patient.tempsCoucherMoyen }} min</span>
+            <span v-else class="no-data">-</span>
           </td>
           <td class="alerts-cell">
             <span v-if="patient.alertes > 0" class="alert-badge">
@@ -137,28 +130,13 @@ td {
   text-align: center;
 }
 
-.badge {
-  display: inline-block;
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+.temps-cell {
+  text-align: center;
+  font-size: 13px;
 }
 
-.badge-etage-1 {
-  background: #DBEAFE;
-  color: #0369A1;
-}
-
-.badge-etage-2 {
-  background: #D1FAE5;
-  color: #047857;
-}
-
-.badge-etage-3 {
-  background: #FCE7F3;
-  color: #9D174D;
+.no-data {
+  color: #94A3B8;
 }
 
 .status-badge {
