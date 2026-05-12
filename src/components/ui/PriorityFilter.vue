@@ -17,9 +17,9 @@
         @click="$emit('update:modelValue', modelValue === priority ? null : priority)"
       >
         <span class="priority-icon">
-          {{ priority === 'basse' ? '🟢' : priority === 'normale' ? '🟡' : priority === 'haute' ? '🟠' : '🔴' }}
+          {{ getPriorityIcon(priority) }}
         </span>
-        <span class="priority-text">{{ capitalizeLabel(priority) }}</span>
+        <span class="priority-text">{{ getPriorityLabel(priority) }}</span>
       </button>
     </div>
   </div>
@@ -28,18 +28,31 @@
 <script setup>
 defineProps({
   modelValue: {
-    type: String,
+    type: [Number, String],
     default: null
   }
 })
 
 defineEmits(['update:modelValue'])
 
-const priorities = ['basse', 'normale', 'haute', 'critique']
+const priorities = [1, 2, 3, 4]
 
-const capitalizeLabel = (text) => {
-  return text.charAt(0).toUpperCase() + text.slice(1)
+const priorityLabels = {
+  1: '1 - Basse',
+  2: '2 - Normale',
+  3: '3 - Haute',
+  4: '4 - Critique'
 }
+
+const priorityIcons = {
+  1: '🟢',
+  2: '🟡',
+  3: '🟠',
+  4: '🔴'
+}
+
+const getPriorityLabel = (priority) => priorityLabels[priority] || '?'
+const getPriorityIcon = (priority) => priorityIcons[priority] || '⚪'
 </script>
 
 <style scoped>

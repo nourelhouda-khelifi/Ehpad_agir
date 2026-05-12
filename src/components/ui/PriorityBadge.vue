@@ -1,5 +1,5 @@
 <template>
-  <div class="priority-badge" :class="`priority-${priority}`" :title="priorityLabel">
+  <div class="priority-badge" :class="`priority-${Number(priority)}`" :title="priorityLabel">
     <span class="priority-icon">{{ priorityIcon }}</span>
     <span class="priority-label">{{ priorityLabel }}</span>
   </div>
@@ -10,30 +10,32 @@ import { computed } from 'vue'
 
 const props = defineProps({
   priority: {
-    type: String,
+    type: [Number, String],
     required: true,
-    validator: (value) => ['basse', 'normale', 'haute', 'critique'].includes(value)
+    validator: (value) => [1, 2, 3, 4, '1', '2', '3', '4'].includes(value)
   }
 })
 
 const priorityLabel = computed(() => {
+  const p = Number(props.priority)
   const labels = {
-    basse: 'Basse',
-    normale: 'Normale',
-    haute: 'Haute',
-    critique: 'Critique'
+    1: '1 - Basse',
+    2: '2 - Normale',
+    3: '3 - Haute',
+    4: '4 - Critique'
   }
-  return labels[props.priority] || 'N/A'
+  return labels[p] || 'N/A'
 })
 
 const priorityIcon = computed(() => {
+  const p = Number(props.priority)
   const icons = {
-    basse: '🟢',
-    normale: '🟡',
-    haute: '🟠',
-    critique: '🔴'
+    1: '🟢',
+    2: '🟡',
+    3: '🟠',
+    4: '🔴'
   }
-  return icons[props.priority] || '⚪'
+  return icons[p] || '⚪'
 })
 </script>
 
@@ -49,25 +51,25 @@ const priorityIcon = computed(() => {
   white-space: nowrap;
 }
 
-.priority-badge.priority-basse {
+.priority-badge.priority-1 {
   background-color: rgba(34, 197, 94, 0.1);
   color: #16a34a;
   border: 1px solid #86efac;
 }
 
-.priority-badge.priority-normale {
+.priority-badge.priority-2 {
   background-color: rgba(251, 146, 60, 0.1);
   color: #ea580c;
   border: 1px solid #fed7aa;
 }
 
-.priority-badge.priority-haute {
+.priority-badge.priority-3 {
   background-color: rgba(249, 115, 22, 0.1);
   color: #c2410c;
   border: 1px solid #fecaca;
 }
 
-.priority-badge.priority-critique {
+.priority-badge.priority-4 {
   background-color: rgba(239, 68, 68, 0.1);
   color: #991b1b;
   border: 1px solid #fca5a5;

@@ -55,7 +55,7 @@ export const PATIENT_PROFILS = {
     label: 'Lucide, ambulant',
     category: 'cat1',
     description: 'Lucide, ambulant',
-    priorite: 'basse'
+    priorite: 1
   },
   profil2: {
     id: 'profil2',
@@ -63,7 +63,7 @@ export const PATIENT_PROFILS = {
     label: 'Lucide, ambulant',
     category: 'cat1',
     description: 'Lucide, ambulant',
-    priorite: 'basse'
+    priorite: 1
   },
   profil3: {
     id: 'profil3',
@@ -71,7 +71,7 @@ export const PATIENT_PROFILS = {
     label: 'Lucide, ambulant',
     category: 'cat1',
     description: 'Lucide, ambulant',
-    priorite: 'basse'
+    priorite: 1
   },
   profil4: {
     id: 'profil4',
@@ -79,7 +79,7 @@ export const PATIENT_PROFILS = {
     label: 'Lucide, ambulant',
     category: 'cat2',
     description: 'Lucide, ambulant',
-    priorite: 'normale'
+    priorite: 2
   },
   profil5: {
     id: 'profil5',
@@ -87,7 +87,7 @@ export const PATIENT_PROFILS = {
     label: 'Pertes cogn. - ambulant',
     category: 'cat3',
     description: 'Pertes cognitives, ambulant',
-    priorite: 'normale'
+    priorite: 2
   },
   profil6: {
     id: 'profil6',
@@ -95,7 +95,7 @@ export const PATIENT_PROFILS = {
     label: 'Lucide, ambulant',
     category: 'cat2',
     description: 'Lucide, ambulant',
-    priorite: 'normale'
+    priorite: 2
   },
   profil7: {
     id: 'profil7',
@@ -103,7 +103,7 @@ export const PATIENT_PROFILS = {
     label: 'Pertes cogn. - ambulant',
     category: 'cat3',
     description: 'Pertes cognitives, ambulant',
-    priorite: 'haute'
+    priorite: 3
   },
   profil8: {
     id: 'profil8',
@@ -111,7 +111,7 @@ export const PATIENT_PROFILS = {
     label: 'Pertes cogn. - ambulant',
     category: 'cat3',
     description: 'Pertes cognitives, ambulant',
-    priorite: 'haute'
+    priorite: 3
   },
   profil9: {
     id: 'profil9',
@@ -119,7 +119,7 @@ export const PATIENT_PROFILS = {
     label: 'Lucide, non-ambulant',
     category: 'cat2',
     description: 'Lucide, non-ambulant',
-    priorite: 'normale'
+    priorite: 2
   },
   profil10: {
     id: 'profil10',
@@ -127,7 +127,7 @@ export const PATIENT_PROFILS = {
     label: 'Pertes cogn. - ambulant',
     category: 'cat3',
     description: 'Pertes cognitives, ambulant',
-    priorite: 'haute'
+    priorite: 3
   },
   profil11: {
     id: 'profil11',
@@ -135,7 +135,7 @@ export const PATIENT_PROFILS = {
     label: 'Pertes cogn. - non ambulant',
     category: 'cat4',
     description: 'Pertes cognitives, non-ambulant',
-    priorite: 'critique'
+    priorite: 4
   },
   profil12: {
     id: 'profil12',
@@ -143,7 +143,7 @@ export const PATIENT_PROFILS = {
     label: 'Pertes cogn. - ambulant',
     category: 'cat4',
     description: 'Pertes cognitives, ambulant',
-    priorite: 'critique'
+    priorite: 4
   },
   profil13: {
     id: 'profil13',
@@ -151,7 +151,7 @@ export const PATIENT_PROFILS = {
     label: 'Pertes cogn. - non ambulant',
     category: 'cat5',
     description: 'Pertes cognitives, non-ambulant',
-    priorite: 'critique'
+    priorite: 4
   },
   profil14: {
     id: 'profil14',
@@ -159,7 +159,7 @@ export const PATIENT_PROFILS = {
     label: 'Pertes cogn. - non ambulant',
     category: 'cat5',
     description: 'Pertes cognitives, non-ambulant',
-    priorite: 'critique'
+    priorite: 4
   }
 }
 

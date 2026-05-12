@@ -40,6 +40,18 @@
         <option value="SC2">SC2</option>
         <option value="SG">SG</option>
       </select>
+      <select v-model="filterCategorie" class="filter-select">
+        <option value="">Toutes catégories</option>
+        <option v-for="cat in categorieListe" :key="cat.id" :value="cat.id">
+          {{ cat.icon }} {{ cat.label }}
+        </option>
+      </select>
+      <select v-model="filterProfil" class="filter-select">
+        <option value="">Tous les profils</option>
+        <option v-for="profil in profilListe" :key="profil.id" :value="profil.id">
+          Profil {{ profil.numero }} - {{ profil.label }}
+        </option>
+      </select>
     </div>
 
     <!-- Filtres rapides -->
@@ -101,6 +113,9 @@
       :sort-order="sortOrder"
       @open-patient="openPatient"
       @sort="handleSort"
+      @update-patient="updatePatient"
+      @reorder-patients="handleReorderPatients"
+      @move-patient="handleMovePatient"
     />
 
     <!-- Pagination -->
@@ -127,7 +142,7 @@ import PatientsTable from '@/components/patients/PatientsTable.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 
 import { mockPatients } from '@/data/mockPatients.js'
-import { PATIENT_PROFILS } from '@/data/mockPatientProfils.js'
+import { PATIENT_PROFILS, PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 
 const router = useRouter()
 
@@ -137,12 +152,14 @@ const patients = ref(mockPatients)
 const searchQuery = ref('')
 const filterEtage = ref('')
 const filterAS = ref('')
+const filterCategorie = ref('')
+const filterProfil = ref('')
 const filterCategory = ref(null)
 const filterPriority = ref(null)
 const filterQuick = ref('all')
 
 // Tri
-const sortKey = ref('chambre')
+const sortKey = ref(null)
 const sortOrder = ref('asc')
 
 // Pagination
@@ -173,7 +190,17 @@ const filteredPatients = computed(() => {
     result = result.filter(p => p.asReferent === filterAS.value)
   }
 
-  // Filtre catégorie
+  // Filtre catégorie (select)
+  if (filterCategorie.value) {
+    result = result.filter(p => p.categorie === filterCategorie.value)
+  }
+
+  // Filtre profil (select)
+  if (filterProfil.value) {
+    result = result.filter(p => p.profil === filterProfil.value)
+  }
+
+  // Filtre catégorie (buttons)
   if (filterCategory.value) {
     result = result.filter(p => p.categorie === filterCategory.value)
   }
@@ -232,8 +259,17 @@ const sansDoucheCount = computed(() =>
 const countByEtage = (etage) =>
   patients.value.filter(p => p.etage === etage).length
 
+// Computed : listes pour les selects
+const categorieListe = computed(() =>
+  Object.values(PATIENT_CATEGORIES)
+)
+
+const profilListe = computed(() =>
+  Object.values(PATIENT_PROFILS).sort((a, b) => a.numero - b.numero)
+)
+
 // Reset page quand on filtre
-watch([searchQuery, filterEtage, filterAS, filterCategory, filterPriority, filterQuick], () => {
+watch([searchQuery, filterEtage, filterAS, filterCategorie, filterProfil, filterCategory, filterPriority, filterQuick], () => {
   currentPage.value = 1
 })
 
@@ -245,6 +281,60 @@ const handleSort = (key) => {
     sortKey.value = key
     sortOrder.value = 'asc'
   }
+}
+
+const updatePatient = (patientId, field, value) => {
+  const patient = patients.value.find(p => p.id === patientId)
+  if (patient) {
+    patient[field] = value || null
+  }
+}
+
+const handleReorderPatients = (reorderedPagePatients) => {
+  // Créer une map des IDs dans le nouvel ordre
+  const newOrder = {}
+  reorderedPagePatients.forEach((p, idx) => {
+    newOrder[p.id] = idx
+  })
+  
+  // Trouver les indices des patients réarrangés dans patients.value
+  const reorderedIds = reorderedPagePatients.map(p => p.id)
+  const indices = reorderedIds.map(id => patients.value.findIndex(p => p.id === id))
+  
+  // Créer un nouvel array en réarrangeant les patients
+  const result = [...patients.value]
+  const reorderedPatients = indices.map(idx => result[idx])
+  
+  // Supprimer les patients réarrangés de leurs positions actuelles (du dernier au premier)
+  indices.sort((a, b) => b - a).forEach(idx => {
+    result.splice(idx, 1)
+  })
+  
+  // Insérer les patients réarrangés à la position du premier patient de la page
+  const insertIndex = Math.min(...indices)
+  result.splice(insertIndex, 0, ...reorderedPatients)
+  
+  patients.value = result
+}
+
+const handleMovePatient = (patientId, direction) => {
+  // Trouver l'index dans l'array COMPLET
+  const currentIndex = patients.value.findIndex(p => p.id === patientId)
+  if (currentIndex === -1) return
+  
+  const newIndex = currentIndex + direction
+  
+  // Vérifier les limites
+  if (newIndex < 0 || newIndex >= patients.value.length) return
+  
+  // Créer un nouvel array pour forcer la réactivité
+  const newPatients = [...patients.value]
+  const temp = newPatients[currentIndex]
+  newPatients[currentIndex] = newPatients[newIndex]
+  newPatients[newIndex] = temp
+  
+  // Remplacer l'array complet pour forcer le recalcul de paginatedPatients
+  patients.value = newPatients
 }
 
 const openPatient = (id) => {
