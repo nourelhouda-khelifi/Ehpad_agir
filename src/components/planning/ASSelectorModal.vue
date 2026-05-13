@@ -80,9 +80,23 @@
         <span class="duration-unit">minutes</span>
       </div>
 
+      <div class="section-label" style="margin-top: 24px;">Moment de l'activité</div>
+      <div class="moment-control">
+        <button
+          v-for="moment in ['matin', 'soir']"
+          :key="moment"
+          type="button"
+          class="moment-btn"
+          :class="{ 'is-active': selectedMoment === moment }"
+          @click="selectedMoment = moment"
+        >
+          {{ moment === 'matin' ? '🌅 Matin' : '🌙 Soir' }}
+        </button>
+      </div>
+
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="$emit('close')">Annuler</button>
-        <button class="btn btn-primary" :disabled="!selectedAS || (selectedAS === asActuel && selectedDuree === dureeActuelle)" @click="handleConfirm">
+        <button class="btn btn-primary" :disabled="!selectedAS" @click="handleConfirm">
           {{ asActuel ? 'Modifier' : 'Confirmer' }}<span v-if="selectedAS"> {{ selectedAS }}</span>
         </button>
       </div>
@@ -102,13 +116,15 @@ const props = defineProps({
   asActuel: { type: String, default: null },
   activite: { type: String, default: 'douche' },
   dureeActuelle: { type: Number, default: 30 },
+  momentActuel: { type: String, default: 'matin' },
   aidesAvecCharge: { type: Array, required: true },
   recommandation: { type: Object, default: null }
 })
 
 const emit = defineEmits(['close', 'confirm', 'remove'])
 const selectedAS = ref(props.asActuel || props.recommandation?.code || null)
-const selectedDuree = ref(props.dureeActuelle || 30)
+const selectedDuree = ref(props.dureeActuelle !== undefined && props.dureeActuelle !== null ? props.dureeActuelle : '')
+const selectedMoment = ref(props.momentActuel || 'matin')
 
 const jourLabel = computed(() => {
   const jours = {
@@ -135,9 +151,9 @@ const activiteLabel = computed(() => {
 })
 
 const handleConfirm = () => {
-  if (selectedAS.value) {
-    emit('confirm', { as: selectedAS.value, duree: selectedDuree.value })
-  }
+  if (!selectedAS.value) return
+  const duree = selectedDuree.value ? parseInt(selectedDuree.value) : null
+  emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value })
 }
 
 const handleRemove = () => {
@@ -291,24 +307,42 @@ const handleRemove = () => {
   transition: all var(--transition-base);
   background: white;
   box-shadow: var(--shadow-xs);
+  position: relative;
+  overflow: hidden;
+}
+
+.as-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+  pointer-events: none;
 }
 
 .as-item:hover {
   border-color: var(--color-primary);
   background: var(--color-bg-tertiary);
   box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+}
+
+.as-item:hover::before {
+  opacity: 0.5;
 }
 
 .as-item.is-selected {
   border-color: var(--color-primary);
-  background: var(--color-primary-light);
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(135deg, var(--color-primary-light) 0%, rgba(37, 99, 235, 0.08) 100%);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1), var(--shadow-sm);
+  border-width: 2px;
 }
 
 .as-item.is-recommended {
   border-color: var(--color-success);
-  background: var(--color-success-light);
+  background: linear-gradient(135deg, var(--color-success-light) 0%, rgba(16, 185, 129, 0.08) 100%);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1), var(--shadow-sm);
 }
 
 .as-item.is-overload {
@@ -453,5 +487,36 @@ const handleRemove = () => {
   color: var(--color-text-secondary);
   font-weight: 500;
   white-space: nowrap;
+}
+
+.moment-control {
+  display: flex;
+  gap: 12px;
+  padding: 0 24px 16px;
+}
+
+.moment-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.moment-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.moment-btn.is-active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
 }
 </style>

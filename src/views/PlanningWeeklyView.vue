@@ -72,7 +72,7 @@
           <span class="charge-mini-value">{{ as.chargeMinutes }} min</span>
         </div>
         <ChargeBar :minutes="as.chargeMinutes" />
-        <div class="charge-mini-meta">{{ as.nbDouches }} douche(s) · {{ as.nbPatients }} patient(s)</div>
+        <div class="charge-mini-meta">{{ as.nbActivites }} activité(s) · {{ as.nbPatients }} patient(s)</div>
       </div>
     </div>
 
@@ -115,9 +115,10 @@
           <PlanningCell
             v-for="jour in jours"
             :key="jour.key"
-            :as-code="currentPlanning[patient.id]?.[jour.key]?.as"
-            :duree="currentPlanning[patient.id]?.[jour.key]?.duree"
-            :is-warning="isPatientSansDouche(patient.id) && !currentPlanning[patient.id]?.[jour.key]?.as"
+            :as-code="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.as"
+            :duree="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.duree"
+            :moment="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.moment"
+            :is-warning="isPatientSansDouche(patient.id) && !currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.as"
             @click="openModal(patient, jour.key)"
           />
         </div>
@@ -130,8 +131,9 @@
       :jour="modalJour"
       :semaine="currentWeek"
       :activite="selectedActivity"
-      :as-actuel="currentPlanning[modalPatient.id]?.[modalJour]?.as"
-      :duree-actuelle="currentPlanning[modalPatient.id]?.[modalJour]?.duree || 30"
+      :as-actuel="currentPlanning[modalPatient.id]?.[modalJour]?.[selectedActivity]?.as"
+      :duree-actuelle="currentPlanning[modalPatient.id]?.[modalJour]?.[selectedActivity]?.duree || (selectedActivity === 'douche' ? 30 : null)"
+      :moment-actuel="currentPlanning[modalPatient.id]?.[modalJour]?.[selectedActivity]?.moment || 'matin'"
       :aides-avec-charge="aidesSoignantsAvecCharge"
       :recommandation="recommanderAS"
       @close="closeModal"
@@ -225,16 +227,15 @@ const countEtage = (etage) => patients.value.filter((patient) => patient.etage =
 const rowHasAS = (patientId, asCode) => {
   const planningPatient = currentPlanning.value[patientId]
   if (!planningPatient) return false
-  return Object.values(planningPatient).some(cell => {
-    const cellAS = typeof cell === 'string' ? cell : cell?.as
-    return cellAS === asCode
+  return Object.values(planningPatient).some(dayActivities => {
+    return dayActivities[selectedActivity.value]?.as === asCode
   })
 }
 
 const isPatientSansDouche = (patientId) => {
   const planningPatient = currentPlanning.value[patientId]
   if (!planningPatient) return true
-  return Object.values(planningPatient).every((cell) => !cell || !cell.activity || cell.activity !== selectedActivity.value)
+  return Object.values(planningPatient).every((dayActivities) => !dayActivities || !dayActivities[selectedActivity.value])
 }
 
 const patientsWithoutActivity = computed(() => {
@@ -301,7 +302,7 @@ const closeModal = () => {
 const ensurePatientPlanning = (patientId) => {
   if (!currentPlanning.value[patientId]) {
     currentPlanning.value[patientId] = joursSemaine.reduce((acc, jour) => {
-      acc[jour] = { as: null, activity: null, duree: null }
+      acc[jour] = {}
       return acc
     }, {})
   }
@@ -310,15 +311,15 @@ const ensurePatientPlanning = (patientId) => {
 const handleAssign = (data) => {
   if (!modalPatient.value || !modalJour.value) return
   ensurePatientPlanning(modalPatient.value.id)
-  const { as: codeAS, duree } = typeof data === 'string' ? { as: data, duree: 30 } : data
-  currentPlanning.value[modalPatient.value.id][modalJour.value] = { as: codeAS, activity: selectedActivity.value, duree }
+  const { as: codeAS, duree, moment } = typeof data === 'string' ? { as: data, duree: 30, moment: 'matin' } : data
+  currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value] = { as: codeAS, duree, moment: moment || 'matin' }
   closeModal()
 }
 
 const handleRemove = () => {
   if (!modalPatient.value || !modalJour.value) return
   ensurePatientPlanning(modalPatient.value.id)
-  currentPlanning.value[modalPatient.value.id][modalJour.value] = { as: null, activity: null, duree: null }
+  delete currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value]
   closeModal()
 }
 </script>
@@ -442,19 +443,24 @@ const handleRemove = () => {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  position: relative;
+  overflow: hidden;
 }
 
 .activity-pill:hover {
   border-color: var(--color-primary);
-  background: rgba(37, 99, 235, 0.05);
+  background: rgba(37, 99, 235, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
 
 .activity-pill.is-active {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
   color: white;
   border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .as-charges-summary {
@@ -472,6 +478,29 @@ const handleRemove = () => {
   background: white;
   border: 1px solid var(--color-border-light);
   box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.charge-mini::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.charge-mini:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+}
+
+.charge-mini:hover::before {
+  opacity: 0.4;
 }
 
 .charge-mini-head {
@@ -514,10 +543,16 @@ const handleRemove = () => {
   border: 1px solid var(--color-border-light);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.planning-grid-card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .planning-grid {
   min-width: 960px;
+  animation: fadeIn 0.4s ease-out;
 }
 
 .grid-header,

@@ -102,15 +102,18 @@
             <div class="patient-room">{{ patient.chambre }}</div>
           </div>
           <div v-for="jour in joursSemaine" :key="`${patient.id}-${jour}`" class="grid-cell">
-            <div 
-              v-if="getActivityForPatient(patient.id, jour) && getActivityForPatient(patient.id, jour).activity" 
-              class="activity-badge" 
-              :class="getActivityClass(getActivityForPatient(patient.id, jour).activity)"
-              @click="handleActivityClick(patient, jour, getActivityForPatient(patient.id, jour).activity)"
-            >
-              <span class="activity-type">{{ getActivityLabel(getActivityForPatient(patient.id, jour).activity) }}</span>
-              <span class="activity-as">{{ getActivityForPatient(patient.id, jour).as }}</span>
-            </div>
+            <template v-if="getActivityForPatient(patient.id, jour) && Object.keys(getActivityForPatient(patient.id, jour)).length > 0">
+              <div 
+                v-for="(activityData, activityKey) in getActivityForPatient(patient.id, jour)" 
+                :key="`${patient.id}-${jour}-${activityKey}`"
+                class="activity-badge" 
+                :class="getActivityClass(activityKey)"
+                @click="handleActivityClick(patient, jour, activityKey)"
+              >
+                <span class="activity-type">{{ getActivityLabel(activityKey) }}</span>
+                <span class="activity-as">{{ activityData.as }}</span>
+              </div>
+            </template>
             <div v-else class="activity-empty">—</div>
           </div>
         </template>
@@ -206,10 +209,13 @@ const patientsFiltres = computed(() => {
   
   const filteredIds = new Set()
   Object.entries(planning.value).forEach(([patientId, days]) => {
-    Object.values(days).forEach(day => {
-      if (day.as === filterAS.value) {
-        filteredIds.add(Number(patientId))
-      }
+    Object.values(days).forEach(dayActivities => {
+      // dayActivities is now { activity: { as, duree, moment } }
+      Object.values(dayActivities || {}).forEach(activity => {
+        if (activity?.as === filterAS.value) {
+          filteredIds.add(Number(patientId))
+        }
+      })
     })
   })
   
@@ -220,8 +226,11 @@ const patientsFiltres = computed(() => {
 const totalActivites = computed(() => {
   let count = 0
   Object.values(planning.value).forEach(patientDays => {
-    Object.values(patientDays).forEach(day => {
-      if (day.activity) count++
+    Object.values(patientDays).forEach(dayActivities => {
+      // dayActivities is now { activity: { as, duree, moment } }
+      Object.values(dayActivities || {}).forEach(activity => {
+        if (activity) count++
+      })
     })
   })
   return count
@@ -229,6 +238,7 @@ const totalActivites = computed(() => {
 
 // Fonctions
 const getActivityForPatient = (patientId, jour) => {
+  // Return the activities object for a given day (could have multiple activities)
   return planning.value[patientId]?.[jour]
 }
 
@@ -242,6 +252,12 @@ const getActivityClass = (activity) => {
 
 const getDateForDay = (jour) => {
   return datesOfWeek[jour]
+}
+
+// Get first activity (for display - if multiple, show first)
+const getFirstActivityKey = (dayActivities) => {
+  if (!dayActivities) return null
+  return Object.keys(dayActivities)[0]
 }
 
 // Gestion modal commentaires

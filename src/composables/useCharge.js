@@ -5,24 +5,25 @@ import { DUREE_DOUCHE } from '@/data/mockPlanning.js'
 export function useCharge(planning) {
   const calculerChargeAS = (codeAS, planningData) => {
     let totalMinutes = 0
-    let nbDouches = 0
+    let nbActivites = 0
     const patientsUniques = new Set()
 
     Object.entries(planningData || {}).forEach(([patientId, jours]) => {
-      Object.values(jours || {}).forEach((cellData) => {
-        // Support both old format (string) and new format ({ as, activity })
-        const asCode = typeof cellData === 'string' ? cellData : cellData?.as
-        if (asCode === codeAS) {
-          totalMinutes += DUREE_DOUCHE
-          nbDouches += 1
-          patientsUniques.add(patientId)
-        }
+      Object.values(jours || {}).forEach((dayActivities) => {
+        // dayActivities is now { activity: { as, duree, moment }, ... }
+        Object.values(dayActivities || {}).forEach((activity) => {
+          if (activity?.as === codeAS) {
+            totalMinutes += activity.duree || 0
+            nbActivites += 1
+            patientsUniques.add(patientId)
+          }
+        })
       })
     })
 
     return {
       totalMinutes,
-      nbDouches,
+      nbActivites,
       nbPatients: patientsUniques.size
     }
   }
