@@ -1,6 +1,9 @@
 <template>
   <div class="planning-cell" :class="cellClass" @click="$emit('click')">
-    <ASBadge v-if="asCode" :code="asCode" />
+    <div v-if="asCode" class="cell-content">
+      <ASBadge :code="asCode" />
+      <span v-if="duree" class="cell-duration">{{ duree }}m</span>
+    </div>
     <span v-else-if="isWarning" class="cell-warning">+ Assigner</span>
     <span v-else class="cell-empty">—</span>
   </div>
@@ -12,6 +15,7 @@ import ASBadge from '@/components/ui/ASBadge.vue'
 
 const props = defineProps({
   asCode: { type: String, default: null },
+  duree: { type: Number, default: null },
   isWarning: { type: Boolean, default: false }
 })
 
@@ -41,12 +45,25 @@ const cellClass = computed(() => ({
   background: var(--color-bg-secondary);
 }
 
+.cell-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 .is-assigned {
   background: linear-gradient(135deg, #DCFCE7 0%, #D1FAE5 100%);
 }
 
 .is-assigned:hover {
   background: linear-gradient(135deg, #C8F3DA 0%, #BBF7D0 100%);
+}
+
+.cell-duration {
+  font-size: 10px;
+  color: #059669;
+  font-weight: 600;
 }
 
 .is-warning {

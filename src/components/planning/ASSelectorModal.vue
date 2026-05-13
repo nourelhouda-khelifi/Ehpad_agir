@@ -5,7 +5,7 @@
         <div class="modal-title-area">
           <h2 class="modal-title">Assigner un Aide-Soignant</h2>
           <p class="modal-subtitle">
-            <strong>{{ patientNom }}</strong> · {{ jourLabel }} · Douche
+            <strong>{{ patientNom }}</strong> · {{ jourLabel }} · {{ activiteLabel }}
           </p>
         </div>
         <button class="close-btn" @click="$emit('close')">✕</button>
@@ -66,9 +66,23 @@
         </div>
       </div>
 
+      <div class="section-label" style="margin-top: 24px;">Durée de l'activité</div>
+      <div class="duration-control">
+        <input
+          v-model.number="selectedDuree"
+          type="number"
+          min="5"
+          max="120"
+          step="5"
+          class="duration-input"
+          placeholder="Durée en minutes"
+        />
+        <span class="duration-unit">minutes</span>
+      </div>
+
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="$emit('close')">Annuler</button>
-        <button class="btn btn-primary" :disabled="!selectedAS || selectedAS === asActuel" @click="handleConfirm">
+        <button class="btn btn-primary" :disabled="!selectedAS || (selectedAS === asActuel && selectedDuree === dureeActuelle)" @click="handleConfirm">
           {{ asActuel ? 'Modifier' : 'Confirmer' }}<span v-if="selectedAS"> {{ selectedAS }}</span>
         </button>
       </div>
@@ -86,12 +100,15 @@ const props = defineProps({
   jour: { type: String, required: true },
   semaine: { type: Number, default: 19 },
   asActuel: { type: String, default: null },
+  activite: { type: String, default: 'douche' },
+  dureeActuelle: { type: Number, default: 30 },
   aidesAvecCharge: { type: Array, required: true },
   recommandation: { type: Object, default: null }
 })
 
 const emit = defineEmits(['close', 'confirm', 'remove'])
 const selectedAS = ref(props.asActuel || props.recommandation?.code || null)
+const selectedDuree = ref(props.dureeActuelle || 30)
 
 const jourLabel = computed(() => {
   const jours = {
@@ -106,9 +123,20 @@ const jourLabel = computed(() => {
   return jours[props.jour] || props.jour
 })
 
+const activiteLabel = computed(() => {
+  const labels = {
+    douche: 'Douche',
+    wc: 'WC',
+    toilette: 'Toilette',
+    coucher: 'Coucher',
+    repas: 'Repas'
+  }
+  return labels[props.activite] || props.activite
+})
+
 const handleConfirm = () => {
   if (selectedAS.value) {
-    emit('confirm', selectedAS.value)
+    emit('confirm', { as: selectedAS.value, duree: selectedDuree.value })
   }
 }
 
@@ -396,5 +424,34 @@ const handleRemove = () => {
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+.duration-control {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0 24px 16px;
+}
+
+.duration-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  transition: all var(--transition-base);
+}
+
+.duration-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.duration-unit {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
 }
 </style>

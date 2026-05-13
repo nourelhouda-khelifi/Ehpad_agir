@@ -116,6 +116,7 @@
             v-for="jour in jours"
             :key="jour.key"
             :as-code="currentPlanning[patient.id]?.[jour.key]?.as"
+            :duree="currentPlanning[patient.id]?.[jour.key]?.duree"
             :is-warning="isPatientSansDouche(patient.id) && !currentPlanning[patient.id]?.[jour.key]?.as"
             @click="openModal(patient, jour.key)"
           />
@@ -128,7 +129,9 @@
       :patient-nom="formatName(modalPatient)"
       :jour="modalJour"
       :semaine="currentWeek"
+      :activite="selectedActivity"
       :as-actuel="currentPlanning[modalPatient.id]?.[modalJour]?.as"
+      :duree-actuelle="currentPlanning[modalPatient.id]?.[modalJour]?.duree || 30"
       :aides-avec-charge="aidesSoignantsAvecCharge"
       :recommandation="recommanderAS"
       @close="closeModal"
@@ -298,23 +301,24 @@ const closeModal = () => {
 const ensurePatientPlanning = (patientId) => {
   if (!currentPlanning.value[patientId]) {
     currentPlanning.value[patientId] = joursSemaine.reduce((acc, jour) => {
-      acc[jour] = { as: null, activity: null }
+      acc[jour] = { as: null, activity: null, duree: null }
       return acc
     }, {})
   }
 }
 
-const handleAssign = (codeAS) => {
+const handleAssign = (data) => {
   if (!modalPatient.value || !modalJour.value) return
   ensurePatientPlanning(modalPatient.value.id)
-  currentPlanning.value[modalPatient.value.id][modalJour.value] = { as: codeAS, activity: selectedActivity.value }
+  const { as: codeAS, duree } = typeof data === 'string' ? { as: data, duree: 30 } : data
+  currentPlanning.value[modalPatient.value.id][modalJour.value] = { as: codeAS, activity: selectedActivity.value, duree }
   closeModal()
 }
 
 const handleRemove = () => {
   if (!modalPatient.value || !modalJour.value) return
   ensurePatientPlanning(modalPatient.value.id)
-  currentPlanning.value[modalPatient.value.id][modalJour.value] = { as: null, activity: null }
+  currentPlanning.value[modalPatient.value.id][modalJour.value] = { as: null, activity: null, duree: null }
   closeModal()
 }
 </script>
