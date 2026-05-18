@@ -26,7 +26,27 @@
         <button class="btn-remove" @click="handleRemove">🗑️ Retirer l'assignation</button>
       </div>
 
-      <div class="section-label">Charge actuelle (Semaine {{ semaine }})</div>
+      <div class="section-label">Type d'assignation</div>
+      <div class="type-control">
+        <button
+          type="button"
+          class="type-btn"
+          :class="{ 'is-active': assignmentType === 'single' }"
+          @click="assignmentType = 'single'; selectedAS2 = null"
+        >
+          👤 1 Aide
+        </button>
+        <button
+          type="button"
+          class="type-btn"
+          :class="{ 'is-active': assignmentType === 'shared' }"
+          @click="assignmentType = 'shared'"
+        >
+          👥 2 Aides
+        </button>
+      </div>
+
+      <div class="section-label" style="margin-top: 20px;">Charge actuelle (Semaine {{ semaine }})</div>
 
       <div class="as-list">
         <div
@@ -35,10 +55,11 @@
           class="as-item"
           :class="{
             'is-selected': selectedAS === as.code,
+            'is-selected-2': selectedAS2 === as.code,
             'is-recommended': recommandation?.code === as.code && !asActuel,
             'is-overload': as.niveau === 'surcharge'
           }"
-          @click="selectedAS = as.code"
+          @click="selectAS(as.code)"
         >
           <input
             :id="`as-${as.code}`"
@@ -66,8 +87,47 @@
         </div>
       </div>
 
+      <div v-if="assignmentType === 'shared'" class="section-label" style="margin-top: 20px;">2ème Aide</div>
+      <div v-if="assignmentType === 'shared'" class="as-list">
+        <div
+          v-for="as in aidesAvecCharge"
+          :key="as.id"
+          class="as-item"
+          :class="{
+            'is-selected-2': selectedAS2 === as.code,
+            'is-disabled': selectedAS2 !== as.code && as.code === selectedAS,
+            'is-overload': as.niveau === 'surcharge'
+          }"
+        >
+          <input
+            :id="`as2-${as.code}`"
+            v-model="selectedAS2"
+            type="radio"
+            :value="as.code"
+            name="selectedAS2Group"
+            class="as-radio"
+            :disabled="as.code === selectedAS"
+          />
+
+          <label :for="`as2-${as.code}`" class="as-label">
+            <div class="as-code">
+              <ASBadge :code="as.code" />
+            </div>
+
+            <div class="as-charge">
+              <ChargeBar :minutes="as.chargeMinutes" />
+              <div class="as-meta">
+                <span>{{ as.chargeMinutes }} min · {{ as.nbPatients }} patient(s)</span>
+              </div>
+            </div>
+
+            <div class="as-niveau" :class="`niveau-${as.niveau}`">{{ as.labelNiveau }}</div>
+          </label>
+        </div>
+      </div>
+
       <div class="section-label" style="margin-top: 24px;">Durée de l'activité</div>
-      <div class="duration-control">
+      <div v-if="assignmentType === 'single'" class="duration-control">
         <input
           v-model.number="selectedDuree"
           type="number"
@@ -78,6 +138,61 @@
           placeholder="Durée en minutes"
         />
         <span class="duration-unit">minutes</span>
+      </div>
+
+      <div v-if="assignmentType === 'shared'" class="duration-shared">
+        <div class="duration-total">
+          <label>Durée totale :</label>
+          <div class="duration-control-shared">
+            <input
+              v-model.number="selectedDureeTotal"
+              type="number"
+              min="10"
+              max="240"
+              step="5"
+              class="duration-input"
+              placeholder="Durée totale en minutes"
+            />
+            <span class="duration-unit">minutes</span>
+          </div>
+        </div>
+        <div class="duration-split">
+          <div class="duration-per-as">
+            <label>{{ selectedAS }} :</label>
+            <div class="duration-control-shared">
+              <input
+                v-model.number="selectedDuree1"
+                type="number"
+                min="5"
+                max="240"
+                step="5"
+                class="duration-input"
+                @change="syncDurations"
+                placeholder="Durée"
+              />
+              <span class="duration-unit">min</span>
+            </div>
+          </div>
+          <div class="duration-per-as">
+            <label>{{ selectedAS2 || '2e Aide' }} :</label>
+            <div class="duration-control-shared">
+              <input
+                v-model.number="selectedDuree2"
+                type="number"
+                min="5"
+                max="240"
+                step="5"
+                class="duration-input"
+                @change="syncDurations"
+                placeholder="Durée"
+              />
+              <span class="duration-unit">min</span>
+            </div>
+          </div>
+          <div class="duration-sum">
+            Total: <strong>{{ (selectedDuree1 || 0) + (selectedDuree2 || 0) }} min</strong>
+          </div>
+        </div>
       </div>
 
       <div class="section-label" style="margin-top: 24px;">Moment de l'activité</div>
@@ -96,8 +211,12 @@
 
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="$emit('close')">Annuler</button>
-        <button class="btn btn-primary" :disabled="!selectedAS" @click="handleConfirm">
-          {{ asActuel ? 'Modifier' : 'Confirmer' }}<span v-if="selectedAS"> {{ selectedAS }}</span>
+        <button 
+          class="btn btn-primary" 
+          :disabled="!selectedAS || (assignmentType === 'shared' && (!selectedAS2 || !selectedDuree1 || !selectedDuree2))" 
+          @click="handleConfirm"
+        >
+          {{ asActuel ? 'Modifier' : 'Confirmer' }}<span v-if="selectedAS"> {{ selectedAS }}</span><span v-if="assignmentType === 'shared' && selectedAS2"> + {{ selectedAS2 }}</span>
         </button>
       </div>
     </div>
@@ -123,8 +242,13 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'confirm', 'remove'])
 const selectedAS = ref(props.asActuel || props.recommandation?.code || null)
+const selectedAS2 = ref(null)
 const selectedDuree = ref(props.dureeActuelle !== undefined && props.dureeActuelle !== null ? props.dureeActuelle : '')
+const selectedDureeTotal = ref(props.dureeActuelle !== undefined && props.dureeActuelle !== null ? props.dureeActuelle : '')
+const selectedDuree1 = ref(props.dureeActuelle ? Math.ceil(props.dureeActuelle / 2) : 0)
+const selectedDuree2 = ref(props.dureeActuelle ? Math.floor(props.dureeActuelle / 2) : 0)
 const selectedMoment = ref(props.momentActuel || 'matin')
+const assignmentType = ref('single')
 
 const jourLabel = computed(() => {
   const jours = {
@@ -152,8 +276,56 @@ const activiteLabel = computed(() => {
 
 const handleConfirm = () => {
   if (!selectedAS.value) return
-  const duree = selectedDuree.value ? parseInt(selectedDuree.value) : null
-  emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value })
+  
+  if (assignmentType.value === 'single') {
+    const duree = selectedDuree.value ? parseInt(selectedDuree.value) : null
+    emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value })
+  } else {
+    // Assignation à 2 aides
+    if (!selectedAS2.value) return
+    emit('confirm', {
+      type: 'shared',
+      ases: [selectedAS.value, selectedAS2.value],
+      durees: [parseInt(selectedDuree1.value) || 0, parseInt(selectedDuree2.value) || 0],
+      moment: selectedMoment.value
+    })
+  }
+}
+
+const selectAS = (code) => {
+  if (assignmentType.value === 'single') {
+    selectedAS.value = code
+  } else {
+    if (selectedAS.value === code) {
+      selectedAS.value = null
+    } else {
+      selectedAS.value = code
+    }
+  }
+}
+
+const selectAS2 = (code) => {
+  console.log('selectAS2: before', { code, selectedAS2: selectedAS2.value, selectedAS: selectedAS.value })
+  if (selectedAS2.value === code) {
+    selectedAS2.value = null
+  } else if (code !== selectedAS.value) {
+    selectedAS2.value = code
+  }
+  // Force Vue to react
+  console.log('selectAS2: after', { selectedAS2: selectedAS2.value })
+  console.log('Button should be enabled now, validation check:')
+  console.log({
+    hasAS: !!selectedAS.value,
+    isShared: assignmentType.value === 'shared',
+    hasAS2: !!selectedAS2.value,
+    dur1: selectedDuree1.value,
+    dur2: selectedDuree2.value
+  })
+}
+
+const syncDurations = () => {
+  // Sync the total when individual durations change
+  selectedDureeTotal.value = (selectedDuree1.value || 0) + (selectedDuree2.value || 0)
 }
 
 const handleRemove = () => {
@@ -346,11 +518,13 @@ const handleRemove = () => {
 }
 
 .as-item.is-overload {
-  opacity: 0.72;
+  /* Aides en surcharge restent sélectionnables */
 }
 
 .as-radio {
-  display: none;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .as-label {
@@ -518,5 +692,101 @@ const handleRemove = () => {
   color: white;
   border-color: var(--color-primary);
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.type-control {
+  display: flex;
+  gap: 12px;
+  padding: 0 24px 16px;
+}
+
+.type-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.type-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.type-btn.is-active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.duration-shared {
+  padding: 0 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.duration-total {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.duration-total label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.duration-split {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.duration-per-as {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.duration-per-as label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.duration-control-shared {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.duration-sum {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-light);
+  text-align: right;
+}
+
+.as-item.is-selected-2 {
+  border-color: var(--color-warning);
+  background: linear-gradient(135deg, #FEF3C7 0%, rgba(251, 191, 36, 0.08) 100%);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1), var(--shadow-sm);
+}
+
+.as-item.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 </style>

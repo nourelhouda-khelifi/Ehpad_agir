@@ -10,9 +10,18 @@ export function useCharge(planning) {
 
     Object.entries(planningData || {}).forEach(([patientId, jours]) => {
       Object.values(jours || {}).forEach((dayActivities) => {
-        // dayActivities is now { activity: { as, duree, moment }, ... }
+        // dayActivities is now { activity: { as, duree, moment } or { type: 'shared', ases, durees, moment }, ... }
         Object.values(dayActivities || {}).forEach((activity) => {
-          if (activity?.as === codeAS) {
+          if (activity?.type === 'shared') {
+            // Activité à 2 aides
+            const asIndex = activity.ases?.indexOf(codeAS)
+            if (asIndex !== undefined && asIndex >= 0) {
+              totalMinutes += activity.durees?.[asIndex] || 0
+              nbActivites += 1
+              patientsUniques.add(patientId)
+            }
+          } else if (activity?.as === codeAS) {
+            // Activité simple
             totalMinutes += activity.duree || 0
             nbActivites += 1
             patientsUniques.add(patientId)

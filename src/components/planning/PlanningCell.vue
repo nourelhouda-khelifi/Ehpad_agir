@@ -1,6 +1,13 @@
 <template>
   <div class="planning-cell" :class="cellClass" @click="$emit('click')">
-    <div v-if="asCode" class="cell-content">
+    <div v-if="isShared" class="cell-content-shared">
+      <div class="shared-item" v-for="(as, idx) in asArray" :key="idx">
+        <ASBadge :code="as" />
+        <span class="shared-duration" v-if="dureeArray[idx]">{{ dureeArray[idx] }}m</span>
+      </div>
+      <span v-if="moment" class="cell-moment">{{ moment === 'matin' ? '🌅' : '🌙' }}</span>
+    </div>
+    <div v-else-if="asCode" class="cell-content">
       <ASBadge :code="asCode" />
       <div class="cell-meta">
         <span v-if="duree" class="cell-duration">{{ duree }}m</span>
@@ -20,15 +27,29 @@ const props = defineProps({
   asCode: { type: String, default: null },
   duree: { type: Number, default: null },
   moment: { type: String, default: null },
-  isWarning: { type: Boolean, default: false }
+  isWarning: { type: Boolean, default: false },
+  activityData: { type: Object, default: null }
 })
 
 defineEmits(['click'])
 
+const isShared = computed(() => props.activityData?.type === 'shared')
+
+const asArray = computed(() => {
+  if (isShared.value) return props.activityData.ases || []
+  return props.asCode ? [props.asCode] : []
+})
+
+const dureeArray = computed(() => {
+  if (isShared.value) return props.activityData.durees || []
+  return props.duree ? [props.duree] : []
+})
+
 const cellClass = computed(() => ({
-  'is-assigned': !!props.asCode,
-  'is-warning': props.isWarning && !props.asCode,
-  'is-empty': !props.asCode && !props.isWarning
+  'is-assigned': !!props.asCode || isShared.value,
+  'is-shared': isShared.value,
+  'is-warning': props.isWarning && !props.asCode && !isShared.value,
+  'is-empty': !props.asCode && !props.isWarning && !isShared.value
 }))
 </script>
 
@@ -152,6 +173,39 @@ const cellClass = computed(() => ({
 .is-warning:hover {
   background: rgba(226, 75, 74, 0.15);
   animation: none;
+}
+
+.is-shared {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FCD34D 100%);
+  border-left: 3px solid #F59E0B;
+}
+
+.is-shared:hover {
+  background: linear-gradient(135deg, #FEC97F 0%, #FCA926 100%);
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+}
+
+.cell-content-shared {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  animation: slideIn 0.3s ease-out;
+  z-index: 1;
+  width: 100%;
+}
+
+.shared-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.shared-duration {
+  color: #854D0E;
+  font-weight: 700;
+  font-size: 10px;
 }
 
 .cell-warning {

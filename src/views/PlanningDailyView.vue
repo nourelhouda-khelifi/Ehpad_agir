@@ -102,16 +102,27 @@
             <div class="patient-room">{{ patient.chambre }}</div>
           </div>
           <div v-for="jour in joursSemaine" :key="`${patient.id}-${jour}`" class="grid-cell">
-            <template v-if="getActivityForPatient(patient.id, jour) && Object.keys(getActivityForPatient(patient.id, jour)).length > 0">
+            <template v-if="getFilteredActivities(patient.id, jour) && Object.keys(getFilteredActivities(patient.id, jour)).length > 0">
               <div 
-                v-for="(activityData, activityKey) in getActivityForPatient(patient.id, jour)" 
+                v-for="(activityData, activityKey) in getFilteredActivities(patient.id, jour)" 
                 :key="`${patient.id}-${jour}-${activityKey}`"
                 class="activity-badge" 
                 :class="getActivityClass(activityKey)"
                 @click="handleActivityClick(patient, jour, activityKey)"
               >
                 <span class="activity-type">{{ getActivityLabel(activityKey) }}</span>
-                <span class="activity-as">{{ activityData.as }}</span>
+                <!-- Affichage simple -->
+                <span v-if="!activityData.type || activityData.type !== 'shared'" class="activity-as">
+                  {{ activityData.as }}
+                  <span v-if="activityData.duree" class="activity-duree">{{ activityData.duree }}m</span>
+                </span>
+                <!-- Affichage partagé -->
+                <template v-else>
+                  <span v-for="(as, idx) in activityData.ases" :key="idx" class="activity-as-shared">
+                    {{ as }}
+                    <span v-if="activityData.durees && activityData.durees[idx]" class="activity-duree">{{ activityData.durees[idx] }}m</span>
+                  </span>
+                </template>
               </div>
             </template>
             <div v-else class="activity-empty">—</div>
@@ -161,17 +172,62 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { mockPatients } from '@/data/mockPatients.js'
 import { mockAidesSoignants } from '@/data/mockAides.js'
 import { mockPlanningSemaine19, joursSemaine } from '@/data/mockPlanning.js'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 
+// LocalStorage key
+const PLANNING_STORAGE_KEY = 'ehpad_planning_data'
+
+// Fonctions pour la persistance localStorage
+const loadPlanningFromStorage = () => {
+  try {
+    const stored = localStorage.getItem(PLANNING_STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (error) {
+    console.error('Erreur chargement planning depuis localStorage:', error)
+  }
+  return null
+}
+
+const savePlanningToStorage = (planning) => {
+  try {
+    localStorage.setItem(PLANNING_STORAGE_KEY, JSON.stringify(planning))
+  } catch (error) {
+    console.error('Erreur sauvegarde planning dans localStorage:', error)
+  }
+}
+
 const patients = ref(mockPatients)
 const aidesSoignants = ref(mockAidesSoignants)
 const planning = ref(mockPlanningSemaine19)
 const filterAS = ref('all')
+
+// Charger et synchroniser les données du localStorage
+onMounted(() => {
+  const storedData = loadPlanningFromStorage()
+  if (storedData && storedData[19]) {
+    // Fusionner les données stockées
+    Object.assign(planning.value, storedData[19])
+  }
+})
+
+// Mettre à jour le localStorage quand les données changent
+watch(
+  () => planning.value,
+  (newValue) => {
+    // Charger les autres semaines existantes et mettre à jour la semaine 19
+    const allWeeks = loadPlanningFromStorage() || {}
+    allWeeks[19] = newValue
+    savePlanningToStorage(allWeeks)
+  },
+  { deep: true, immediate: false }
+)
 
 // Référence pour capturer le planning
 const planningRef = ref(null)
@@ -210,9 +266,14 @@ const patientsFiltres = computed(() => {
   const filteredIds = new Set()
   Object.entries(planning.value).forEach(([patientId, days]) => {
     Object.values(days).forEach(dayActivities => {
-      // dayActivities is now { activity: { as, duree, moment } }
+      // dayActivities is now { activity: { as, duree, moment } } or { activity: { type: 'shared', ases, durees, moment } }
       Object.values(dayActivities || {}).forEach(activity => {
+        // Check simple assignment
         if (activity?.as === filterAS.value) {
+          filteredIds.add(Number(patientId))
+        }
+        // Check shared assignment
+        if (activity?.ases && activity.ases.includes(filterAS.value)) {
           filteredIds.add(Number(patientId))
         }
       })
@@ -240,6 +301,25 @@ const totalActivites = computed(() => {
 const getActivityForPatient = (patientId, jour) => {
   // Return the activities object for a given day (could have multiple activities)
   return planning.value[patientId]?.[jour]
+}
+
+const getFilteredActivities = (patientId, jour) => {
+  // Return only activities that concern the filtered AS
+  const activities = getActivityForPatient(patientId, jour)
+  if (!activities || filterAS.value === 'all') return activities
+  
+  // Filter activities to show only those for the selected AS
+  const filtered = {}
+  Object.entries(activities).forEach(([actKey, actData]) => {
+    // Check if this activity concerns the filtered AS
+    if (actData?.as === filterAS.value) {
+      filtered[actKey] = actData
+    } else if (actData?.ases && actData.ases.includes(filterAS.value)) {
+      filtered[actKey] = actData
+    }
+  })
+  
+  return Object.keys(filtered).length > 0 ? filtered : null
 }
 
 const getActivityLabel = (activity) => {
@@ -689,6 +769,22 @@ const downloadPDF = async () => {
   font-size: 11px;
   font-weight: 500;
   opacity: 0.8;
+}
+
+.activity-as-shared {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.85;
+  display: block;
+  margin-top: 2px;
+}
+
+.activity-duree {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.7;
+  margin-top: 2px;
+  display: block;
 }
 
 .activity-douche {

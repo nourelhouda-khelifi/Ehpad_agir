@@ -118,7 +118,8 @@
             :as-code="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.as"
             :duree="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.duree"
             :moment="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.moment"
-            :is-warning="isPatientSansDouche(patient.id) && !currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.as"
+            :activity-data="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]"
+            :is-warning="isPatientSansDouche(patient.id) && !currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.as && currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.type !== 'shared'"
             @click="openModal(patient, jour.key)"
           />
         </div>
@@ -144,7 +145,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import FilterPill from '@/components/ui/FilterPill.vue'
 import ASBadge from '@/components/ui/ASBadge.vue'
 import ChargeBar from '@/components/ui/ChargeBar.vue'
@@ -155,6 +156,30 @@ import { mockAidesSoignants } from '@/data/mockAides.js'
 import { clonePlanning, createEmptyPlanningForPatients, mockPlanningSemaine19 } from '@/data/mockPlanning.js'
 import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 import { useCharge } from '@/composables/useCharge.js'
+
+// LocalStorage keys
+const PLANNING_STORAGE_KEY = 'ehpad_planning_data'
+
+// Fonctions pour la persistance localStorage
+const loadPlanningFromStorage = () => {
+  try {
+    const stored = localStorage.getItem(PLANNING_STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (error) {
+    console.error('Erreur chargement planning depuis localStorage:', error)
+  }
+  return null
+}
+
+const savePlanningToStorage = (planning) => {
+  try {
+    localStorage.setItem(PLANNING_STORAGE_KEY, JSON.stringify(planning))
+  } catch (error) {
+    console.error('Erreur sauvegarde planning dans localStorage:', error)
+  }
+}
 
 const patients = ref(mockPatients)
 const planningByWeek = ref({
@@ -299,6 +324,24 @@ const closeModal = () => {
   modalJour.value = null
 }
 
+// Charger les données du localStorage au montage
+onMounted(() => {
+  const storedData = loadPlanningFromStorage()
+  if (storedData) {
+    // Fusionner WITHOUT créer une nouvelle référence
+    Object.assign(planningByWeek.value, storedData)
+  }
+})
+
+// Sauvegarder les données PROFONDÉMENT dans localStorage
+watch(
+  () => planningByWeek.value,
+  (newValue) => {
+    savePlanningToStorage(newValue)
+  },
+  { deep: true, immediate: false }
+)
+
 const ensurePatientPlanning = (patientId) => {
   if (!currentPlanning.value[patientId]) {
     currentPlanning.value[patientId] = joursSemaine.reduce((acc, jour) => {
@@ -311,8 +354,24 @@ const ensurePatientPlanning = (patientId) => {
 const handleAssign = (data) => {
   if (!modalPatient.value || !modalJour.value) return
   ensurePatientPlanning(modalPatient.value.id)
-  const { as: codeAS, duree, moment } = typeof data === 'string' ? { as: data, duree: 30, moment: 'matin' } : data
-  currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value] = { as: codeAS, duree, moment: moment || 'matin' }
+  
+  if (data.type === 'shared') {
+    // Tâche à 2 aides
+    currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value] = {
+      type: 'shared',
+      ases: data.ases,
+      durees: data.durees,
+      moment: data.moment || 'matin'
+    }
+  } else {
+    // Tâche simple (1 aide)
+    const { as: codeAS, duree, moment } = typeof data === 'string' ? { as: data, duree: 30, moment: 'matin' } : data
+    currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value] = {
+      as: codeAS,
+      duree,
+      moment: moment || 'matin'
+    }
+  }
   closeModal()
 }
 
