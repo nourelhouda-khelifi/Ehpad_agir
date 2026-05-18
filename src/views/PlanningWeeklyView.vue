@@ -201,7 +201,10 @@ const activitiesConfig = ref({
   wc: { icon: '🚽', label: 'WC', color: '#8B5CF6' },
   toilette: { icon: '🚿', label: 'Toilette', color: '#06B6D4' },
   coucher: { icon: '🌙', label: 'Coucher', color: '#F59E0B' },
-  repas: { icon: '🍽️', label: 'Repas', color: '#10B981' }
+  repas: { icon: '🍽️', label: 'Repas', color: '#10B981' },
+  lever: { icon: '⬆️', label: 'Lever', color: '#EC4899' },
+  sieste: { icon: '😴', label: 'Sieste', color: '#8B5CF6' },
+  petitDejeuner: { icon: '🥐', label: 'Petit déjeuner', color: '#F59E0B' }
 })
 
 const baseWeekStart = new Date(2026, 4, 11)

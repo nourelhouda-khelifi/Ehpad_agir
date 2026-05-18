@@ -245,7 +245,10 @@ const activitiesConfig = {
   wc: { label: 'WC', color: '#A855F7' },
   toilette: { label: 'Toilette', color: '#06B6D4' },
   coucher: { label: 'Coucher', color: '#F97316' },
-  repas: { label: 'Repas', color: '#22C55E' }
+  repas: { label: 'Repas', color: '#22C55E' },
+  lever: { label: 'Lever', color: '#EC4899' },
+  sieste: { label: 'Sieste', color: '#8B5CF6' },
+  petitDejeuner: { label: 'Petit déjeuner', color: '#F59E0B' }
 }
 
 // Dates de la semaine

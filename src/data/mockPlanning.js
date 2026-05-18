@@ -3,13 +3,19 @@ export const DUREE_WC = null
 export const DUREE_TOILETTE = null
 export const DUREE_COUCHER = null
 export const DUREE_REPAS = null
+export const DUREE_LEVER = 20
+export const DUREE_SIESTE = 60
+export const DUREE_PETIT_DEJEUNER = 25
 
 const dureeParActivite = {
   'douche': DUREE_DOUCHE,
   'wc': DUREE_WC,
   'toilette': DUREE_TOILETTE,
   'coucher': DUREE_COUCHER,
-  'repas': DUREE_REPAS
+  'repas': DUREE_REPAS,
+  'lever': DUREE_LEVER,
+  'sieste': DUREE_SIESTE,
+  'petitDejeuner': DUREE_PETIT_DEJEUNER
 }
 
 function createActivity(as, activity, moment = 'matin') {
