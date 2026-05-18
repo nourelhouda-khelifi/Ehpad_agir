@@ -198,14 +198,14 @@
       <div class="section-label" style="margin-top: 24px;">Moment de l'activité</div>
       <div class="moment-control">
         <button
-          v-for="moment in ['matin', 'soir']"
-          :key="moment"
+          v-for="option in momentOptions"
+          :key="option.key"
           type="button"
           class="moment-btn"
-          :class="{ 'is-active': selectedMoment === moment }"
-          @click="selectedMoment = moment"
+          :class="{ 'is-active': selectedMoment === option.key }"
+          @click="selectedMoment = option.key"
         >
-          {{ moment === 'matin' ? '🌅 Matin' : '🌙 Soir' }}
+          {{ option.label }}
         </button>
       </div>
 
@@ -247,7 +247,7 @@ const selectedDuree = ref(props.dureeActuelle !== undefined && props.dureeActuel
 const selectedDureeTotal = ref(props.dureeActuelle !== undefined && props.dureeActuelle !== null ? props.dureeActuelle : '')
 const selectedDuree1 = ref(props.dureeActuelle ? Math.ceil(props.dureeActuelle / 2) : 0)
 const selectedDuree2 = ref(props.dureeActuelle ? Math.floor(props.dureeActuelle / 2) : 0)
-const selectedMoment = ref(props.momentActuel || 'matin')
+const selectedMoment = ref(props.momentActuel || (props.activite === 'coucher' ? '18-19' : 'matin'))
 const assignmentType = ref('single')
 
 const jourLabel = computed(() => {
@@ -269,9 +269,27 @@ const activiteLabel = computed(() => {
     wc: 'WC',
     toilette: 'Toilette',
     coucher: 'Coucher',
-    repas: 'Repas'
+    repas: 'Repas',
+    lever: 'Lever',
+    sieste: 'Sieste',
+    petitDejeuner: 'Petit déjeuner'
   }
   return labels[props.activite] || props.activite
+})
+
+const momentOptions = computed(() => {
+  // Pour l'activité "coucher", afficher les créneaux horaires 18-19h et 19-20h
+  if (props.activite === 'coucher') {
+    return [
+      { key: '18-19', label: '🌆 18-19h' },
+      { key: '19-20', label: '🌙 19-20h' }
+    ]
+  }
+  // Pour les autres activités, afficher Matin / Soir
+  return [
+    { key: 'matin', label: '🌅 Matin' },
+    { key: 'soir', label: '🌙 Soir' }
+  ]
 })
 
 const handleConfirm = () => {
