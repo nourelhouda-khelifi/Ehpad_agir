@@ -24,11 +24,6 @@
       <div class="tab-panel">
         <!-- Onglet Douches -->
         <div v-if="activeTab === 'douches'" class="tab-douches">
-          <DoucheCalendar
-            :douches="patient.douches"
-            @toggle-douche="handleToggleDouche"
-          />
-
           <div class="info-grid">
             <SectionCard title="Données soins" icon="⏱️">
               <InfoRow label="Temps toilette lit" :value="patient.tempsToiletteLit + ' min'" />
@@ -147,7 +142,6 @@ import { useRoute } from 'vue-router'
 
 import PatientHeader from '@/components/patients/PatientHeader.vue'
 import PatientAlertBanner from '@/components/patients/PatientAlertBanner.vue'
-import DoucheCalendar from '@/components/patients/DoucheCalendar.vue'
 import HistoriqueList from '@/components/patients/HistoriqueList.vue'
 import NotesSection from '@/components/patients/NotesSection.vue'
 import Tabs from '@/components/ui/Tabs.vue'
@@ -190,17 +184,6 @@ const alertesMessages = computed(() => {
 
   return msgs
 })
-
-// Méthodes
-const handleToggleDouche = (jour) => {
-  // En statique, on simule juste l'ouverture du modal
-  // Pour le moment on alterne vide/SE2 pour tester l'UI
-  if (patient.value.douches[jour]) {
-    patient.value.douches[jour] = null
-  } else {
-    patient.value.douches[jour] = 'SE2'
-  }
-}
 
 // Obtenir les notes pour un soin spécifique
 const getNotesBySoin = (soin) => {
