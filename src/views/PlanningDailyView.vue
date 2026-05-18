@@ -4,7 +4,13 @@
     <div class="page-title-bar">
       <div>
         <h1 class="page-title">Planning de la semaine</h1>
-        <p class="page-subtitle">Semaine du 11 au 17 mai 2026 (Lundi - Dimanche)</p>
+        <p class="page-subtitle">{{ weekLabel }}</p>
+      </div>
+      <div class="page-actions">
+        <CalendarWeekSelector
+          v-model="currentWeek"
+          :base-week-start="baseWeekStart"
+        />
       </div>
     </div>
 
@@ -173,9 +179,10 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import CalendarWeekSelector from '@/components/ui/CalendarWeekSelector.vue'
 import { mockPatients } from '@/data/mockPatients.js'
 import { mockAidesSoignants } from '@/data/mockAides.js'
-import { mockPlanningSemaine19, joursSemaine } from '@/data/mockPlanning.js'
+import { mockPlanningSemaine19, mockPlanningSemaine20, joursSemaine, clonePlanning, createEmptyPlanningForPatients } from '@/data/mockPlanning.js'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 
@@ -205,26 +212,60 @@ const savePlanningToStorage = (planning) => {
 
 const patients = ref(mockPatients)
 const aidesSoignants = ref(mockAidesSoignants)
-const planning = ref(mockPlanningSemaine19)
+
+// Gestion des semaines
+const baseWeekStart = new Date(2026, 4, 11)
+const planningByWeek = ref({
+  19: clonePlanning(mockPlanningSemaine19),
+  20: clonePlanning(mockPlanningSemaine20)
+})
+const currentWeek = ref(20)
+
+const ensurePlanningForWeek = (week) => {
+  if (!planningByWeek.value[week]) {
+    planningByWeek.value[week] = createEmptyPlanningForPatients(patients.value)
+  }
+}
+
+watch(currentWeek, (week) => {
+  ensurePlanningForWeek(week)
+}, { immediate: true })
+
+const currentPlanning = computed(() => planningByWeek.value[currentWeek.value])
+
+const weekLabel = computed(() => {
+  const start = new Date(baseWeekStart)
+  start.setDate(baseWeekStart.getDate() + (currentWeek.value - 19) * 7)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  return `Semaine ${currentWeek.value} du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+})
+
+const datesOfWeek = computed(() => {
+  const dates = {}
+  joursSemaine.forEach((jour, index) => {
+    const date = new Date(baseWeekStart)
+    date.setDate(baseWeekStart.getDate() + index + (currentWeek.value - 19) * 7)
+    dates[jour] = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  })
+  return dates
+})
+
 const filterAS = ref('all')
 
 // Charger et synchroniser les données du localStorage
 onMounted(() => {
   const storedData = loadPlanningFromStorage()
-  if (storedData && storedData[19]) {
-    // Fusionner les données stockées
-    Object.assign(planning.value, storedData[19])
+  if (storedData) {
+    Object.assign(planningByWeek.value, storedData)
   }
 })
 
 // Mettre à jour le localStorage quand les données changent
 watch(
-  () => planning.value,
+  () => planningByWeek.value,
   (newValue) => {
-    // Charger les autres semaines existantes et mettre à jour la semaine 19
-    const allWeeks = loadPlanningFromStorage() || {}
-    allWeeks[19] = newValue
-    savePlanningToStorage(allWeeks)
+    savePlanningToStorage(newValue)
   },
   { deep: true, immediate: false }
 )
@@ -251,23 +292,12 @@ const activitiesConfig = {
   petitDejeuner: { label: 'Petit déjeuner', color: '#F59E0B' }
 }
 
-// Dates de la semaine
-const datesOfWeek = {
-  lundi: '11/05',
-  mardi: '12/05',
-  mercredi: '13/05',
-  jeudi: '14/05',
-  vendredi: '15/05',
-  samedi: '16/05',
-  dimanche: '17/05'
-}
-
 // Patients filtrés par AS
 const patientsFiltres = computed(() => {
   if (filterAS.value === 'all') return patients.value
   
   const filteredIds = new Set()
-  Object.entries(planning.value).forEach(([patientId, days]) => {
+  Object.entries(currentPlanning.value).forEach(([patientId, days]) => {
     Object.values(days).forEach(dayActivities => {
       // dayActivities is now { activity: { as, duree, moment } } or { activity: { type: 'shared', ases, durees, moment } }
       Object.values(dayActivities || {}).forEach(activity => {
@@ -289,7 +319,7 @@ const patientsFiltres = computed(() => {
 // Stats
 const totalActivites = computed(() => {
   let count = 0
-  Object.values(planning.value).forEach(patientDays => {
+  Object.values(currentPlanning.value).forEach(patientDays => {
     Object.values(patientDays).forEach(dayActivities => {
       // dayActivities is now { activity: { as, duree, moment } }
       Object.values(dayActivities || {}).forEach(activity => {
@@ -303,7 +333,7 @@ const totalActivites = computed(() => {
 // Fonctions
 const getActivityForPatient = (patientId, jour) => {
   // Return the activities object for a given day (could have multiple activities)
-  return planning.value[patientId]?.[jour]
+  return currentPlanning.value[patientId]?.[jour]
 }
 
 const getFilteredActivities = (patientId, jour) => {

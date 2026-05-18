@@ -1,5 +1,5 @@
 import { ref, watch, onMounted } from 'vue'
-import { clonePlanning, mockPlanningSemaine19 } from '@/data/mockPlanning.js'
+import { clonePlanning, mockPlanningSemaine19, mockPlanningSemaine20 } from '@/data/mockPlanning.js'
 
 // LocalStorage key
 const PLANNING_STORAGE_KEY = 'ehpad_planning_data'
@@ -11,7 +11,8 @@ export const usePlanningStore = () => {
   // Initialiser seulement une fois
   if (!planningByWeekRef) {
     planningByWeekRef = ref({
-      19: clonePlanning(mockPlanningSemaine19)
+      19: clonePlanning(mockPlanningSemaine19),
+      20: clonePlanning(mockPlanningSemaine20)
     })
     
     // Charger depuis localStorage au premier accès

@@ -6,9 +6,10 @@
         <p class="page-subtitle">{{ weekLabel }}</p>
       </div>
       <div class="page-actions">
-        <button class="btn btn-secondary" @click="previousWeek">‹ Précédent</button>
-        <button class="btn btn-secondary" @click="goToCurrentWeek">Cette semaine</button>
-        <button class="btn btn-secondary" @click="nextWeek">Suivant ›</button>
+        <CalendarWeekSelector
+          v-model="currentWeek"
+          :base-week-start="baseWeekStart"
+        />
         <button class="btn btn-primary">📥 Export</button>
       </div>
     </div>
@@ -149,11 +150,12 @@ import { computed, ref, watch, onMounted } from 'vue'
 import FilterPill from '@/components/ui/FilterPill.vue'
 import ASBadge from '@/components/ui/ASBadge.vue'
 import ChargeBar from '@/components/ui/ChargeBar.vue'
+import CalendarWeekSelector from '@/components/ui/CalendarWeekSelector.vue'
 import PlanningCell from '@/components/planning/PlanningCell.vue'
 import ASSelectorModal from '@/components/planning/ASSelectorModal.vue'
 import { mockPatients } from '@/data/mockPatients.js'
 import { mockAidesSoignants } from '@/data/mockAides.js'
-import { clonePlanning, createEmptyPlanningForPatients, mockPlanningSemaine19 } from '@/data/mockPlanning.js'
+import { clonePlanning, createEmptyPlanningForPatients, mockPlanningSemaine19, mockPlanningSemaine20 } from '@/data/mockPlanning.js'
 import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 import { useCharge } from '@/composables/useCharge.js'
 
@@ -183,10 +185,11 @@ const savePlanningToStorage = (planning) => {
 
 const patients = ref(mockPatients)
 const planningByWeek = ref({
-  19: clonePlanning(mockPlanningSemaine19)
+  19: clonePlanning(mockPlanningSemaine19),
+  20: clonePlanning(mockPlanningSemaine20)
 })
 
-const currentWeek = ref(19)
+const currentWeek = ref(20)
 const filterEtage = ref('all')
 const filterAS = ref('all')
 const filterSansDouche = ref(false)
