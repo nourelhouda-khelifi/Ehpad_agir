@@ -293,14 +293,13 @@ const handleConfirm = () => {
 }
 
 const selectAS = (code) => {
+  // En mode "1 aide", toggle simple
+  // En mode "2 aides", sélection directe du 1er soignant (pas de toggle)
   if (assignmentType.value === 'single') {
-    selectedAS.value = code
+    selectedAS.value = selectedAS.value === code ? null : code
   } else {
-    if (selectedAS.value === code) {
-      selectedAS.value = null
-    } else {
-      selectedAS.value = code
-    }
+    // En mode shared, permettre toujours de changer le 1er soignant
+    selectedAS.value = code
   }
 }
 
@@ -383,14 +382,14 @@ const handleRemove = () => {
 }
 
 .modal-title {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .modal-subtitle {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--color-text-secondary);
 }
 
@@ -457,12 +456,13 @@ const handleRemove = () => {
 }
 
 .section-label {
-  padding: 16px 24px 10px;
-  font-size: 11px;
+  padding: 20px 24px 12px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.8px;
+  border-top: 2px solid var(--color-border-light);
 }
 
 .as-list {
@@ -473,7 +473,7 @@ const handleRemove = () => {
 }
 
 .as-item {
-  border: 1px solid var(--color-border-light);
+  border: 2px solid var(--color-border-light);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-base);
@@ -506,9 +506,10 @@ const handleRemove = () => {
 
 .as-item.is-selected {
   border-color: var(--color-primary);
-  background: linear-gradient(135deg, var(--color-primary-light) 0%, rgba(37, 99, 235, 0.08) 100%);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1), var(--shadow-sm);
-  border-width: 2px;
+  background: linear-gradient(135deg, var(--color-primary-light) 0%, rgba(37, 99, 235, 0.15) 100%);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25), var(--shadow-md);
+  border-width: 3px;
+  transform: scale(1.02);
 }
 
 .as-item.is-recommended {
@@ -529,11 +530,12 @@ const handleRemove = () => {
 
 .as-label {
   display: grid;
-  grid-template-columns: 64px 1fr auto;
-  gap: 14px;
+  grid-template-columns: 80px 1fr auto;
+  gap: 18px;
   align-items: center;
-  padding: 14px 16px;
+  padding: 18px 20px;
   cursor: pointer;
+  font-size: 15px;
 }
 
 .as-code {
@@ -550,9 +552,10 @@ const handleRemove = () => {
 .as-meta {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
+  gap: 12px;
+  font-size: 13px;
   color: var(--color-text-secondary);
+  font-weight: 500;
 }
 
 .reco-tag {
@@ -598,10 +601,10 @@ const handleRemove = () => {
 
 .btn {
   flex: 1;
-  padding: 10px 16px;
+  padding: 14px 20px;
   border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   transition: all var(--transition-base);
   cursor: pointer;
 }
@@ -613,25 +616,26 @@ const handleRemove = () => {
 
 .btn-secondary {
   background: white;
-  border: 1px solid var(--color-border-light);
+  border: 2px solid var(--color-border-light);
   color: var(--color-text-primary);
 }
 
 .btn-secondary:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-primary);
+  background: var(--color-primary-light);
 }
 
 .btn-primary {
   background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
   color: white;
-  border: 1px solid var(--color-primary);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
 }
 
 .duration-control {
@@ -643,17 +647,18 @@ const handleRemove = () => {
 
 .duration-input {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--color-border-light);
+  padding: 12px 14px;
+  border: 2px solid var(--color-border-light);
   border-radius: var(--radius-md);
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 600;
   transition: all var(--transition-base);
 }
 
 .duration-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
 }
 
 .duration-unit {
@@ -671,27 +676,28 @@ const handleRemove = () => {
 
 .moment-btn {
   flex: 1;
-  padding: 10px 16px;
-  border: 1px solid var(--color-border-light);
+  padding: 14px 18px;
+  border: 2px solid var(--color-border-light);
   border-radius: var(--radius-md);
   background: white;
   color: var(--color-text-primary);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
   transition: all var(--transition-base);
 }
 
 .moment-btn:hover {
   border-color: var(--color-primary);
-  background: var(--color-bg-tertiary);
+  background: var(--color-primary-light);
+  transform: translateY(-2px);
 }
 
 .moment-btn.is-active {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
   color: white;
   border-color: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .type-control {
@@ -702,27 +708,28 @@ const handleRemove = () => {
 
 .type-btn {
   flex: 1;
-  padding: 10px 16px;
+  padding: 14px 20px;
   border: 2px solid var(--color-border-light);
   border-radius: var(--radius-md);
   background: white;
   color: var(--color-text-primary);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
   transition: all var(--transition-base);
 }
 
 .type-btn:hover {
   border-color: var(--color-primary);
-  background: var(--color-bg-tertiary);
+  background: var(--color-primary-light);
+  transform: translateY(-2px);
 }
 
 .type-btn.is-active {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
   color: white;
   border-color: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .duration-shared {
@@ -739,9 +746,9 @@ const handleRemove = () => {
 }
 
 .duration-total label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
 }
 
 .duration-split {
@@ -760,29 +767,32 @@ const handleRemove = () => {
 }
 
 .duration-per-as label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
 }
 
 .duration-control-shared {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
 .duration-sum {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border-light);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  padding-top: 12px;
+  border-top: 2px solid var(--color-border-light);
   text-align: right;
+  font-weight: 700;
 }
 
 .as-item.is-selected-2 {
   border-color: var(--color-warning);
-  background: linear-gradient(135deg, #FEF3C7 0%, rgba(251, 191, 36, 0.08) 100%);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1), var(--shadow-sm);
+  background: linear-gradient(135deg, #FEF3C7 0%, rgba(251, 191, 36, 0.15) 100%);
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.25), var(--shadow-md);
+  border-width: 3px;
+  transform: scale(1.02);
 }
 
 .as-item.is-disabled {
