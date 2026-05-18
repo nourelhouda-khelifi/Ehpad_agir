@@ -110,6 +110,8 @@
         <!-- Onglet Couchers -->
         <div v-if="activeTab === 'couchers'" class="tab-couchers">
           <SectionCard title="Couchers" icon="🌙">
+            <InfoRow label="Service de coucher" :value="getServiceCoucher()" highlighted />
+            <InfoRow label="Temps coucher moyen" :value="patient.tempsCoucherMoyen + ' min'" highlighted />
             <InfoRow label="Hélios" :value="patient.coucherHelios || 'Non assigné'" />
             <InfoRow label="Grande salle à manger" :value="patient.coucherSalle || 'Non assigné'" />
             <InfoRow label="Temps coucher Lit" :value="patient.tempsCoucherL + ' min'" />
@@ -204,6 +206,31 @@ const handleToggleDouche = (jour) => {
 const getNotesBySoin = (soin) => {
   if (!patient.value.notes) return []
   return patient.value.notes.filter(n => n.soin === soin)
+}
+
+// Obtenir le service de coucher
+const getServiceCoucher = () => {
+  // Déterminer le créneau horaire (18h-19h, 19h-20h, etc.)
+  const getCreneauFromHeure = (heure) => {
+    if (!heure) return null
+    const heures = heure.split('h')[0]
+    const h = parseInt(heures)
+    return `${h}h-${h + 1}h`
+  }
+
+  const creaneauHelios = patient.value.coucherHelios ? getCreneauFromHeure(patient.value.coucherHelios) : null
+  const creaneauSalle = patient.value.coucherSalle ? getCreneauFromHeure(patient.value.coucherSalle) : null
+
+  if (!creaneauHelios && !creaneauSalle) {
+    return 'Non assigné'
+  }
+  if (creaneauHelios && !creaneauSalle) {
+    return `🏥 ${creaneauHelios}`
+  }
+  if (creaneauSalle && !creaneauHelios) {
+    return `🍴 ${creaneauSalle}`
+  }
+  return `🏥 ${creaneauHelios} / 🍴 ${creaneauSalle}`
 }
 
 const handleAddNote = ({ contenu, important, soin }) => {
