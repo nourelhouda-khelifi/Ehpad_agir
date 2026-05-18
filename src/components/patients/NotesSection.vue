@@ -48,7 +48,8 @@
 import { ref } from 'vue'
 
 const props = defineProps({
-  notes: { type: Array, required: true }
+  notes: { type: Array, required: true },
+  soin: { type: String, required: false, default: null }
 })
 
 const emit = defineEmits(['add-note'])
@@ -60,7 +61,8 @@ const addNote = () => {
   if (!newNote.value.trim()) return
   emit('add-note', {
     contenu: newNote.value.trim(),
-    important: isImportant.value
+    important: isImportant.value,
+    soin: props.soin
   })
   newNote.value = ''
   isImportant.value = false

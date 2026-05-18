@@ -35,8 +35,8 @@ export const mockPatients = [
     couchers: { lundi: null, mardi: null, mercredi: null, jeudi: 'SE2', vendredi: null, samedi: null, dimanche: null },
     repas: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: 'SC2', samedi: null, dimanche: null },
     notes: [
-      { id: 1, date: '2026-05-04', auteur: 'Sophie P.', contenu: 'Pb pour la douche', important: true },
-      { id: 2, date: '2026-05-01', auteur: 'Sophie P.', contenu: '2 passages nécessaires le matin', important: false }
+      { id: 1, date: '2026-05-04', auteur: 'Sophie P.', contenu: 'Pb pour la douche', important: true, soin: 'douches' },
+      { id: 2, date: '2026-05-01', auteur: 'Sophie P.', contenu: '2 passages nécessaires le matin', important: false, soin: 'matin' }
     ],
     historique: [
       { date: '2026-05-04T09:15', type: 'douche', as: 'SE2', statut: 'effectue' },
@@ -380,7 +380,7 @@ export const mockPatients = [
     couchers: { lundi: null, mardi: null, mercredi: null, jeudi: null, vendredi: null, samedi: null, dimanche: null },
     repas: { lundi: null, mardi: null, mercredi: 'SC1', jeudi: null, vendredi: null, samedi: null, dimanche: null },
     notes: [
-      { id: 1, date: '2026-05-03', auteur: 'Sophie P.', contenu: '"tombe" trop lourde pour lève-personne', important: true }
+      { id: 1, date: '2026-05-03', auteur: 'Sophie P.', contenu: '"tombe" trop lourde pour lève-personne', important: true, soin: 'matin' }
     ],
     historique: []
   },

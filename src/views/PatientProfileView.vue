@@ -42,6 +42,14 @@
               <HistoriqueList :items="patient.historique" />
             </SectionCard>
           </div>
+
+          <SectionCard title="Notes & Commentaires" icon="💬">
+            <NotesSection
+              :notes="getNotesBySoin('douches')"
+              soin="douches"
+              @add-note="handleAddNote"
+            />
+          </SectionCard>
         </div>
 
         <!-- Onglet Soins matin -->
@@ -56,6 +64,14 @@
               <em>"{{ patient.commentairesMatin }}"</em>
             </InfoRow>
           </SectionCard>
+
+          <SectionCard title="Notes & Commentaires" icon="💬">
+            <NotesSection
+              :notes="getNotesBySoin('matin')"
+              soin="matin"
+              @add-note="handleAddNote"
+            />
+          </SectionCard>
         </div>
 
         <!-- Onglet WC -->
@@ -65,6 +81,14 @@
             <InfoRow label="WC 16h" :value="patient.wc16h ? 'Oui' : 'Non'" />
             <InfoRow label="NGT" :value="patient.ngt ? 'Oui' : 'Non'" />
           </SectionCard>
+
+          <SectionCard title="Notes & Commentaires" icon="💬">
+            <NotesSection
+              :notes="getNotesBySoin('wc')"
+              soin="wc"
+              @add-note="handleAddNote"
+            />
+          </SectionCard>
         </div>
 
         <!-- Onglet Sieste -->
@@ -72,6 +96,14 @@
           <SectionCard title="Sieste" icon="😴">
             <InfoRow label="Mise sieste" :value="patient.miseSieste ? 'Oui' : 'Non'" />
             <InfoRow label="Lever sieste" :value="patient.leverSieste ? 'Oui' : 'Non'" />
+          </SectionCard>
+
+          <SectionCard title="Notes & Commentaires" icon="💬">
+            <NotesSection
+              :notes="getNotesBySoin('sieste')"
+              soin="sieste"
+              @add-note="handleAddNote"
+            />
           </SectionCard>
         </div>
 
@@ -83,13 +115,11 @@
             <InfoRow label="Temps coucher Lit" :value="patient.tempsCoucherL + ' min'" />
             <InfoRow label="Temps coucher Vasque" :value="patient.tempsCoucherV + ' min'" />
           </SectionCard>
-        </div>
 
-        <!-- Onglet Notes -->
-        <div v-if="activeTab === 'notes'" class="tab-notes">
           <SectionCard title="Notes & Commentaires" icon="💬">
             <NotesSection
-              :notes="patient.notes"
+              :notes="getNotesBySoin('couchers')"
+              soin="couchers"
               @add-note="handleAddNote"
             />
           </SectionCard>
@@ -134,8 +164,7 @@ const tabs = [
   { id: 'matin', label: 'Soins matin', icon: '☀️' },
   { id: 'wc', label: 'WC', icon: '🚽' },
   { id: 'sieste', label: 'Sieste', icon: '😴' },
-  { id: 'couchers', label: 'Couchers', icon: '🌙' },
-  { id: 'notes', label: 'Notes', icon: '💬' }
+  { id: 'couchers', label: 'Couchers', icon: '🌙' }
 ]
 
 // Génération automatique des messages d'alerte
@@ -171,15 +200,27 @@ const handleToggleDouche = (jour) => {
   }
 }
 
-const handleAddNote = ({ contenu, important }) => {
-  const newId = (patient.value.notes.length || 0) + 1
-  patient.value.notes.unshift({
+// Obtenir les notes pour un soin spécifique
+const getNotesBySoin = (soin) => {
+  if (!patient.value.notes) return []
+  return patient.value.notes.filter(n => n.soin === soin)
+}
+
+const handleAddNote = ({ contenu, important, soin }) => {
+  const newId = (patient.value.notes?.length || 0) + 1
+  const newNote = {
     id: newId,
     date: new Date().toISOString().split('T')[0],
     auteur: 'Sophie P.',
     contenu,
-    important
-  })
+    important,
+    soin
+  }
+  
+  if (!patient.value.notes) {
+    patient.value.notes = []
+  }
+  patient.value.notes.unshift(newNote)
 }
 </script>
 
