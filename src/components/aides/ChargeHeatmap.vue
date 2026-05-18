@@ -1,14 +1,14 @@
 <template>
   <div class="heatmap">
-    <!-- Header avec jours -->
-    <div class="heatmap-grid">
+    <!-- Header avec jours/periodes -->
+    <div class="heatmap-grid" :style="{ gridTemplateColumns: `60px repeat(${colonnes.length}, 1fr)` }">
       <div class="heatmap-cell heatmap-corner"></div>
       <div
-        v-for="jour in jours"
-        :key="jour.key"
+        v-for="col in colonnes"
+        :key="col.key"
         class="heatmap-cell heatmap-day-label"
       >
-        {{ jour.label }}
+        {{ col.label }}
       </div>
 
       <!-- Lignes par AS -->
@@ -17,14 +17,14 @@
           {{ as.code }}
         </div>
         <div
-          v-for="jour in jours"
-          :key="`${as.code}-${jour.key}`"
+          v-for="col in colonnes"
+          :key="`${as.code}-${col.key}`"
           class="heatmap-cell heatmap-data"
-          :style="{ background: getColor(charge[as.code]?.[jour.key] || 0) }"
-          :title="`${as.code} - ${jour.label} : ${charge[as.code]?.[jour.key] || 0}min`"
+          :style="{ background: getColor(charge[as.code]?.[col.key] || 0) }"
+          :title="`${as.code} - ${col.label} : ${charge[as.code]?.[col.key] || 0}min`"
         >
-          <span v-if="showValues" class="heatmap-value" :class="{ 'is-light': isLightCell(charge[as.code]?.[jour.key] || 0) }">
-            {{ charge[as.code]?.[jour.key] || 0 }}
+          <span v-if="showValues" class="heatmap-value" :class="{ 'is-light': isLightCell(charge[as.code]?.[col.key] || 0) }">
+            {{ charge[as.code]?.[col.key] || 0 }}
           </span>
         </div>
       </template>
@@ -49,10 +49,13 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   aides: { type: Array, required: true },
   charge: { type: Object, required: true },
-  showValues: { type: Boolean, default: true }
+  showValues: { type: Boolean, default: true },
+  viewType: { type: String, default: 'jour' } // 'jour', 'matin', 'soir'
 })
 
 const jours = [
@@ -64,6 +67,11 @@ const jours = [
   { key: 'samedi', label: 'Sam' },
   { key: 'dimanche', label: 'Dim' }
 ]
+
+const colonnes = computed(() => {
+  // Toujours afficher les 7 jours, peu importe le filtre
+  return jours
+})
 
 // Échelle de couleurs selon la charge
 const getColor = (minutes) => {

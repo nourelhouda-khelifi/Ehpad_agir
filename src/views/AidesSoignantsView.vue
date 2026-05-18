@@ -55,10 +55,32 @@
 
     <!-- Heatmap charge -->
     <SectionCard title="Heatmap charge — Semaine 19" icon="📅">
+      <!-- Filtre Jour / Matin / Soir -->
+      <div class="filter-buttons">
+        <button
+          :class="['filter-btn', { 'is-active': heatmapView === 'jour' }]"
+          @click="heatmapView = 'jour'"
+        >
+          📅 Par jour
+        </button>
+        <button
+          :class="['filter-btn', { 'is-active': heatmapView === 'matin' }]"
+          @click="heatmapView = 'matin'"
+        >
+          🌅 Matin
+        </button>
+        <button
+          :class="['filter-btn', { 'is-active': heatmapView === 'soir' }]"
+          @click="heatmapView = 'soir'"
+        >
+          🌙 Soir
+        </button>
+      </div>
       <ChargeHeatmap
         :aides="aides"
-        :charge="chargeJour"
+        :charge="chargeAffichee"
         :show-values="true"
+        :view-type="heatmapView"
       />
     </SectionCard>
 
@@ -77,7 +99,7 @@
 import { ref, computed } from 'vue'
 
 import { mockAidesSoignants } from '@/data/mockAides.js'
-import { mockChargeJour, mockPatientsParAS } from '@/data/mockChargeJour.js'
+import { mockChargeJour, mockChargeJourPeriode, mockPatientsParAS } from '@/data/mockChargeJour.js'
 
 import ASCard from '@/components/aides/ASCard.vue'
 import ChargeHeatmap from '@/components/aides/ChargeHeatmap.vue'
@@ -85,8 +107,30 @@ import ASDetailModal from '@/components/aides/ASDetailModal.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 
 const chargeJour = ref(mockChargeJour)
+const chargeJourPeriode = ref(mockChargeJourPeriode)
 const patientsParAS = ref(mockPatientsParAS)
 const modalAS = ref(null)
+const heatmapView = ref('jour') // 'jour', 'matin', 'soir'
+
+// Données affichées selon le filtre
+const chargeAffichee = computed(() => {
+  if (heatmapView.value === 'jour') {
+    return chargeJour.value
+  }
+  
+  // Pour matin/soir, transformer les données de mockChargeJourPeriode
+  const periode = heatmapView.value // 'matin' ou 'soir'
+  const result = {}
+  
+  Object.entries(chargeJourPeriode.value).forEach(([as, jourData]) => {
+    result[as] = {}
+    Object.entries(jourData).forEach(([jour, periodeData]) => {
+      result[as][jour] = periodeData[periode]
+    })
+  })
+  
+  return result
+})
 
 // Calcul des AS avec leur niveau
 const aides = computed(() => {
@@ -349,5 +393,35 @@ const openDetail = (as) => {
     width: 100%;
     text-align: center;
   }
+}
+
+/* Filter buttons */
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.filter-btn.is-active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
 }
 </style>

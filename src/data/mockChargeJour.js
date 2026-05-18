@@ -9,19 +9,59 @@ export const mockChargeJour = {
 
 // Charge par période (matin: 06h-14h, soir: 14h-22h)
 export const mockChargePeriode = {
-  matin: {
-    SE1: 35,
-    SE2: 70,
-    SC1: 40,
-    SC2: 28,
-    SG: 15
+  SE1: { matin: 35, soir: 40 },
+  SE2: { matin: 70, soir: 65 },
+  SC1: { matin: 40, soir: 38 },
+  SC2: { matin: 28, soir: 32 },
+  SG: { matin: 15, soir: 18 }
+}
+
+// Charge par jour ET par période (matin/soir de chaque jour)
+export const mockChargeJourPeriode = {
+  SE1: {
+    lundi: { matin: 30, soir: 30 },
+    mardi: { matin: 40, soir: 40 },
+    mercredi: { matin: 32, soir: 33 },
+    jeudi: { matin: 55, soir: 55 },
+    vendredi: { matin: 38, soir: 37 },
+    samedi: { matin: 12, soir: 13 },
+    dimanche: { matin: 10, soir: 10 }
   },
-  soir: {
-    SE1: 40,
-    SE2: 65,
-    SC1: 38,
-    SC2: 32,
-    SG: 18
+  SE2: {
+    lundi: { matin: 65, soir: 65 },
+    mardi: { matin: 62, soir: 63 },
+    mercredi: { matin: 47, soir: 48 },
+    jeudi: { matin: 65, soir: 65 },
+    vendredi: { matin: 50, soir: 50 },
+    samedi: { matin: 20, soir: 20 },
+    dimanche: { matin: 17, soir: 18 }
+  },
+  SC1: {
+    lundi: { matin: 35, soir: 35 },
+    mardi: { matin: 30, soir: 30 },
+    mercredi: { matin: 32, soir: 33 },
+    jeudi: { matin: 27, soir: 28 },
+    vendredi: { matin: 15, soir: 15 },
+    samedi: { matin: 10, soir: 10 },
+    dimanche: { matin: 7, soir: 8 }
+  },
+  SC2: {
+    lundi: { matin: 25, soir: 25 },
+    mardi: { matin: 17, soir: 18 },
+    mercredi: { matin: 30, soir: 30 },
+    jeudi: { matin: 15, soir: 15 },
+    vendredi: { matin: 12, soir: 13 },
+    samedi: { matin: 10, soir: 10 },
+    dimanche: { matin: 7, soir: 8 }
+  },
+  SG: {
+    lundi: { matin: 12, soir: 13 },
+    mardi: { matin: 10, soir: 10 },
+    mercredi: { matin: 22, soir: 23 },
+    jeudi: { matin: 12, soir: 13 },
+    vendredi: { matin: 15, soir: 15 },
+    samedi: { matin: 7, soir: 8 },
+    dimanche: { matin: 5, soir: 5 }
   }
 }
 
