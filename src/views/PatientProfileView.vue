@@ -38,6 +38,15 @@
             </SectionCard>
           </div>
 
+          <SectionCard v-if="getToiletteComments().length > 0" title="Commentaires par jour" icon="📝">
+            <div class="toilette-comments">
+              <div v-for="comment in getToiletteComments()" :key="comment.jour" class="comment-item">
+                <span class="comment-day">{{ comment.jour }}</span>
+                <span class="comment-text">{{ comment.texte }}</span>
+              </div>
+            </div>
+          </SectionCard>
+
           <SectionCard title="Notes & Commentaires" icon="💬">
             <NotesSection
               :notes="getNotesBySoin('douches')"
@@ -189,6 +198,25 @@ const alertesMessages = computed(() => {
 const getNotesBySoin = (soin) => {
   if (!patient.value.notes) return []
   return patient.value.notes.filter(n => n.soin === soin)
+}
+
+// Obtenir les commentaires des toilettes par jour
+const getToiletteComments = () => {
+  if (!patient.value.toilettesCommentaires) return []
+  
+  const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+  const comments = []
+  
+  jours.forEach(jour => {
+    if (patient.value.toilettesCommentaires[jour]) {
+      comments.push({
+        jour: jour.charAt(0).toUpperCase() + jour.slice(1),
+        texte: patient.value.toilettesCommentaires[jour]
+      })
+    }
+  })
+  
+  return comments
 }
 
 // Obtenir le service de coucher
@@ -428,5 +456,33 @@ const handleAddNote = ({ contenu, important, soin }) => {
 .btn-back:active {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+/* Toilette comments */
+.toilette-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #F8FAFC;
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-primary);
+}
+
+.comment-day {
+  font-weight: 600;
+  color: var(--color-primary);
+  min-width: 80px;
+}
+
+.comment-text {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
 }
 </style>
