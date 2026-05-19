@@ -456,9 +456,9 @@ const downloadPDF = async () => {
     doc.setFontSize(10)
     doc.text('Semaine du 11 au 17 mai 2026', 15, 25)
 
-    // Collecter les données de toilettes
+    // Collecter les données de toilettes - TOUS les patients
     const toiletteRows = []
-    patientsFiltres.value.forEach(patient => {
+    patients.value.forEach(patient => {
       const toiletteDays = []
       const comments = []
 
@@ -472,73 +472,123 @@ const downloadPDF = async () => {
         }
       })
 
+      // Ajouter SEULEMENT si le patient a au moins une toilette ce soignant
       if (toiletteDays.length > 0) {
         toiletteRows.push({
           patient: `${patient.prenom} ${patient.nom}`,
           chambre: patient.chambre,
-          jours: toiletteDays.join(', '),
-          commentaires: comments.join('\n') || '-'
+          jours: toiletteDays.length > 0 ? toiletteDays.join(', ') : '-',
+          commentaires: comments.length > 0 ? comments.join('\n') : '-'
         })
       }
     })
 
-    // Tableau des toilettes avec bordures
-    const toilColWidths = [45, 20, 40, 60]
-    const toilHeaders = ['Patient', 'Chambre', 'Jours', 'Commentaires']
+    // Tableau des toilettes amélioré
+    const toilColWidths = [30, 18, 32, 45, 50]
+    const toilHeaders = ['Patient', 'Chambre', 'Jours', 'Commentaires dossier', 'Notes soignant']
     
-    doc.setDrawColor(0)
+    const startY = 35
+    let toilY = startY
+    const margin = 12
+    const headerHeight = 10
+    
+    // En-tête du tableau
+    doc.setDrawColor(59, 130, 246)
     doc.setLineWidth(0.5)
     doc.setFillColor(59, 130, 246)
     doc.setTextColor(255, 255, 255)
     doc.setFont(undefined, 'bold')
-    doc.setFontSize(9)
+    doc.setFontSize(10)
 
-    let toilY = 35
-    let colX = 12
+    let colX = margin
     toilHeaders.forEach((header, idx) => {
-      doc.rect(colX, toilY, toilColWidths[idx], 8, 'F')
-      doc.text(header, colX + 2, toilY + 5, { maxWidth: toilColWidths[idx] - 4, align: 'left' })
+      doc.rect(colX, toilY, toilColWidths[idx], headerHeight, 'FD')
+      doc.text(header, colX + 2, toilY + 6.5, { maxWidth: toilColWidths[idx] - 4, align: 'left' })
       colX += toilColWidths[idx]
     })
 
-    toilY += 8
-    doc.setTextColor(0, 0, 0)
-    doc.setFont(undefined, 'normal')
-    doc.setFontSize(8)
-
+    toilY += headerHeight
+    
     if (toiletteRows.length === 0) {
-      doc.text('Aucune toilette planifiée pour cette aide-soignante', 15, toilY)
+      doc.setTextColor(0, 0, 0)
+      doc.setFont(undefined, 'normal')
+      doc.setFontSize(10)
+      doc.text('Aucune toilette planifiée pour cette aide-soignante', margin, toilY + 10)
     } else {
+      doc.setTextColor(0, 0, 0)
+      doc.setFont(undefined, 'normal')
+      doc.setFontSize(9)
+
       toiletteRows.forEach((row, idx) => {
-        if (toilY > pageHeightToilettes - 15) {
-          doc.addPage()
+        // Vérifier si nouvelle page nécessaire
+        if (toilY > pageHeightToilettes - 20) {
+          doc.addPage('p', 'a4')
           toilY = 15
         }
 
-        const minHeight = 8
+        // Calculer la hauteur de la ligne selon le contenu
+        const splitComments = doc.splitTextToSize(row.commentaires, toilColWidths[3] - 4)
+        const maxLines = Math.max(
+          1,
+          splitComments.length
+        )
+        const rowHeight = Math.max(10, maxLines * 4.5 + 4)
+
+        // Couleur alternée
+        const bgColor = idx % 2 === 0 ? [245, 248, 252] : [255, 255, 255]
+        doc.setFillColor(...bgColor)
         
-        // Patient
-        colX = 12
-        doc.rect(colX, toilY, toilColWidths[0], minHeight)
-        doc.text(row.patient, colX + 1, toilY + 3, { maxWidth: toilColWidths[0] - 2 })
+        colX = margin
+        // Remplir les cellules
+        for (let i = 0; i < toilColWidths.length; i++) {
+          doc.rect(colX, toilY, toilColWidths[i], rowHeight, 'F')
+          colX += toilColWidths[i]
+        }
+
+        // Bordures
+        doc.setDrawColor(59, 130, 246)
+        doc.setLineWidth(0.3)
+        colX = margin
+        for (let i = 0; i < toilColWidths.length; i++) {
+          doc.rect(colX, toilY, toilColWidths[i], rowHeight)
+          colX += toilColWidths[i]
+        }
+
+        // Contenu des cellules
+        doc.setTextColor(0, 0, 0)
+        colX = margin
+
+        // Patient (gras)
+        doc.setFont(undefined, 'bold')
+        doc.text(row.patient, colX + 2, toilY + 3.5, { maxWidth: toilColWidths[0] - 4 })
         colX += toilColWidths[0]
 
         // Chambre
-        doc.rect(colX, toilY, toilColWidths[1], minHeight)
-        doc.text(row.chambre, colX + 1, toilY + 3, { maxWidth: toilColWidths[1] - 2 })
+        doc.setFont(undefined, 'normal')
+        doc.text(row.chambre, colX + 2, toilY + 3.5, { maxWidth: toilColWidths[1] - 4 })
         colX += toilColWidths[1]
 
         // Jours
-        doc.rect(colX, toilY, toilColWidths[2], minHeight)
-        doc.text(row.jours, colX + 1, toilY + 3, { maxWidth: toilColWidths[2] - 2 })
+        doc.text(row.jours, colX + 2, toilY + 3.5, { maxWidth: toilColWidths[2] - 4 })
         colX += toilColWidths[2]
 
-        // Commentaires
-        doc.rect(colX, toilY, toilColWidths[3], minHeight)
-        const commentText = row.commentaires.substring(0, 80)
-        doc.text(commentText, colX + 1, toilY + 3, { maxWidth: toilColWidths[3] - 2 })
+        // Commentaires dossier (gris italique, wrapped)
+        doc.setTextColor(80, 80, 80)
+        doc.setFont(undefined, 'italic')
+        doc.setFontSize(8)
+        const commentLines = doc.splitTextToSize(row.commentaires, toilColWidths[3] - 4)
+        doc.text(commentLines, colX + 2, toilY + 3, { maxWidth: toilColWidths[3] - 4, align: 'left' })
+        colX += toilColWidths[3]
 
-        toilY += minHeight
+        // Notes soignant (vide - espace blanc pour écrire)
+        doc.setDrawColor(180, 180, 180)
+        doc.setLineWidth(0.2)
+        doc.setFontSize(9)
+        doc.setTextColor(200, 200, 200)
+        doc.setFont(undefined, 'normal')
+
+        doc.setFontSize(9)
+        toilY += rowHeight
       })
     }
 
