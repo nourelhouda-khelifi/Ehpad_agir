@@ -12,7 +12,12 @@
     </div>
 
     <!-- Header patient -->
-    <PatientHeader :patient="patient" />
+    <div class="patient-header-actions">
+      <PatientHeader :patient="patient" />
+      <div class="header-actions-right">
+        <button class="btn btn-secondary" @click="generatePatientPDF()">📥 Télécharger</button>
+      </div>
+    </div>
 
     <!-- Bandeau alertes -->
     <PatientAlertBanner :alertes="alertesMessages" />
@@ -148,6 +153,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 import PatientHeader from '@/components/patients/PatientHeader.vue'
 import PatientAlertBanner from '@/components/patients/PatientAlertBanner.vue'
@@ -260,6 +267,97 @@ const handleAddNote = ({ contenu, important, soin }) => {
   }
   patient.value.notes.unshift(newNote)
 }
+
+// Génération PDF de la fiche patient
+const generatePatientPDF = () => {
+  if (!patient.value) return
+  const doc = new jsPDF('p', 'mm', 'a4')
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const margin = 15
+
+  // En-tête
+  doc.setFontSize(16)
+  doc.setFont(undefined, 'bold')
+  const fullName = `${patient.value.nom || ''} ${patient.value.prenom || ''}`.trim()
+  doc.text(fullName || 'Patient', margin, 20)
+  doc.setFontSize(10)
+  doc.setFont(undefined, 'normal')
+  const today = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })
+  doc.text(`Date: ${today}`, pageWidth - margin, 20, { align: 'right' })
+
+  // Infos patient
+  const infoRows = [
+    ['ID', patient.value.id || 'N/A'],
+    ['Nom', patient.value.nom || ''],
+    ['Prénom', patient.value.prenom || ''],
+    ['Chambre', patient.value.chambre || ''],
+    ['Étage', patient.value.etage != null ? patient.value.etage.toString() : ''],
+    ['AS référent', patient.value.asReferent || ''],
+    ['Profil', patient.value.profil || ''],
+    ['Catégorie', patient.value.categorie || ''],
+    ['Sans douche', patient.value.sansDouche ? 'Oui' : 'Non']
+  ]
+
+  autoTable(doc, {
+    startY: 28,
+    head: [['Champ', 'Valeur']],
+    body: infoRows,
+    margin: margin,
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] }
+  })
+
+  let yPos = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 40
+
+  // Historique
+  if (patient.value.historique && patient.value.historique.length > 0) {
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text('Historique récent', margin, yPos)
+    yPos += 6
+
+    const histRows = patient.value.historique.map(h => [h.date || '', h.texte || h.titre || ''])
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Date', 'Événement']],
+      body: histRows,
+      margin,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] }
+    })
+    yPos = doc.lastAutoTable.finalY + 10
+  }
+
+  // Notes
+  if (patient.value.notes && patient.value.notes.length > 0) {
+    doc.setFontSize(12)
+    doc.setFont(undefined, 'bold')
+    doc.text('Notes', margin, yPos)
+    yPos += 6
+
+    const notesRows = patient.value.notes.slice(0, 50).map(n => [n.date || '', n.auteur || '', n.soin || '', n.important ? '‼️' : '', n.contenu || ''])
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Date', 'Auteur', 'Soin', 'Imp', 'Contenu']],
+      body: notesRows,
+      margin,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] }
+    })
+    yPos = doc.lastAutoTable.finalY + 10
+  }
+
+  // Numérotation des pages
+  const pageCount = doc.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setTextColor(130, 130, 130)
+    doc.text(`Page ${i} / ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' })
+  }
+
+  doc.save(`fiche-patient-${(patient.value.nom || 'patient').replace(/\s+/g, '-')}-${new Date().toISOString().slice(0,10)}.pdf`)
+}
 </script>
 
 <style scoped>
@@ -327,6 +425,18 @@ const handleAddNote = ({ contenu, important, soin }) => {
   font-weight: 600;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
+}
+
+.patient-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header-actions-right {
+  display: flex;
+  gap: 8px;
 }
 
 /* Profile content */

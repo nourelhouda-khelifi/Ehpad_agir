@@ -1,7 +1,7 @@
 <template>
   <div class="calendar-week-selector" ref="dropdownRef">
     <!-- Bouton trigger compact -->
-    <button class="selector-trigger" @click="isCalendarOpen = !isCalendarOpen">
+    <button class="selector-trigger" ref="triggerRef" @click="toggleCalendar">
       <div class="trigger-content">
         <span class="week-badge">📅 {{ weekDateRange }}</span>
         <span class="trigger-icon">{{ isCalendarOpen ? '▲' : '▼' }}</span>
@@ -9,7 +9,7 @@
     </button>
 
     <!-- Calendrier dropdown -->
-    <div v-if="isCalendarOpen" class="calendar-dropdown">
+    <div v-if="isCalendarOpen" class="calendar-dropdown" :style="dropdownStyle">
       <!-- Navigation mois -->
       <div class="calendar-header">
         <button class="nav-month-btn" @click="previousMonth">‹</button>
@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Number, required: true },
@@ -67,6 +67,39 @@ const isCalendarOpen = ref(false)
 const currentMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth()))
 const selectedDate = ref(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()))
 const dropdownRef = ref(null)
+const triggerRef = ref(null)
+const dropdownStyle = ref({})
+
+const DROPDOWN_WIDTH = 280
+const EDGE_MARGIN = 12
+
+const updateDropdownPosition = () => {
+  if (!triggerRef.value || !dropdownRef.value) return
+
+  const rect = triggerRef.value.getBoundingClientRect()
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const openBelow = rect.bottom + 360 + EDGE_MARGIN <= viewportHeight
+  const alignRight = rect.left + DROPDOWN_WIDTH + EDGE_MARGIN > viewportWidth
+
+  dropdownStyle.value = {
+    top: openBelow ? 'calc(100% + 8px)' : 'auto',
+    bottom: openBelow ? 'auto' : 'calc(100% + 8px)',
+    left: alignRight ? 'auto' : '0',
+    right: alignRight ? '0' : 'auto',
+    maxHeight: `${Math.max(220, viewportHeight - rect.bottom - 20)}px`,
+    overflowY: 'auto'
+  }
+}
+
+const toggleCalendar = async () => {
+  isCalendarOpen.value = !isCalendarOpen.value
+
+  if (isCalendarOpen.value) {
+    await nextTick()
+    updateDropdownPosition()
+  }
+}
 
 // Fermer le calendrier au clic en dehors
 const closeCalendar = (event) => {
@@ -77,10 +110,14 @@ const closeCalendar = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', closeCalendar)
+  window.addEventListener('resize', updateDropdownPosition)
+  window.addEventListener('scroll', updateDropdownPosition, true)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', closeCalendar)
+  window.removeEventListener('resize', updateDropdownPosition)
+  window.removeEventListener('scroll', updateDropdownPosition, true)
 })
 
 const selectedWeekNumber = computed(() => {
@@ -426,8 +463,6 @@ const nextMonth = () => {
 @media (max-width: 640px) {
   .calendar-dropdown {
     width: 260px;
-    right: 0;
-    left: auto;
   }
 }
 </style>

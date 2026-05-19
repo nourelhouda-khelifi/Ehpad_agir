@@ -9,7 +9,7 @@
         </p>
       </div>
       <div class="page-actions">
-        <button class="btn btn-secondary">
+        <button class="btn btn-secondary" @click="generatePatientsPDF()">
           📥 Export
         </button>
         <button class="btn btn-primary">
@@ -133,6 +133,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 import SearchInput from '@/components/ui/SearchInput.vue'
 import FilterPill from '@/components/ui/FilterPill.vue'
@@ -335,6 +337,48 @@ const handleMovePatient = (patientId, direction) => {
   
   // Remplacer l'array complet pour forcer le recalcul de paginatedPatients
   patients.value = newPatients
+}
+
+// Génération PDF de la liste des patients (filtrée)
+const generatePatientsPDF = () => {
+  const doc = new jsPDF('p', 'mm', 'a4')
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const margin = 15
+
+  // Titre
+  doc.setFontSize(14)
+  doc.setFont(undefined, 'bold')
+  doc.text('Liste des patients', margin, 20)
+  doc.setFontSize(10)
+  doc.setFont(undefined, 'normal')
+  const today = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' })
+  doc.text(`Date: ${today}`, pageWidth - margin, 20, { align: 'right' })
+
+  // En-têtes et corps
+  const head = [['ID', 'Nom', 'Prénom', 'Chambre', 'Étage', 'AS', 'Profil', 'Catégorie', 'Alertes', 'Sans douche']]
+  const body = filteredPatients.value.map(p => [
+    p.id ? p.id.toString() : '',
+    p.nom || '',
+    p.prenom || '',
+    p.chambre || '',
+    p.etage != null ? p.etage.toString() : '',
+    p.asReferent || '',
+    (PATIENT_PROFILS[p.profil] && PATIENT_PROFILS[p.profil].label) || '',
+    (PATIENT_CATEGORIES[p.categorie] && PATIENT_CATEGORIES[p.categorie].label) || '',
+    p.alertes != null ? p.alertes.toString() : '0',
+    p.sansDouche ? 'Oui' : 'Non'
+  ])
+
+  autoTable(doc, {
+    startY: 28,
+    head: head,
+    body: body,
+    margin: margin,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' }
+  })
+
+  doc.save(`patients-${today.replace(/ /g, '-')}.pdf`)
 }
 
 const openPatient = (id) => {

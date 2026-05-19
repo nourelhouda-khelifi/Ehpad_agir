@@ -210,15 +210,39 @@ const savePlanningToStorage = (planning) => {
   }
 }
 
+const hasAnyActivity = (weekPlanning) => {
+  return Object.values(weekPlanning || {}).some((patientDays) => {
+    return Object.values(patientDays || {}).some((dayActivities) => {
+      return Object.keys(dayActivities || {}).length > 0
+    })
+  })
+}
+
+const buildDefaultPlanningByWeek = () => ({
+  19: clonePlanning(mockPlanningSemaine19),
+  20: clonePlanning(mockPlanningSemaine20)
+})
+
+const mergeStoredPlanningWithDefaults = (storedPlanning) => {
+  const merged = buildDefaultPlanningByWeek()
+
+  if (storedPlanning && typeof storedPlanning === 'object') {
+    Object.entries(storedPlanning).forEach(([week, planning]) => {
+      if (hasAnyActivity(planning)) {
+        merged[week] = planning
+      }
+    })
+  }
+
+  return merged
+}
+
 const patients = ref(mockPatients)
 const aidesSoignants = ref(mockAidesSoignants)
 
 // Gestion des semaines
 const baseWeekStart = new Date(2026, 4, 11)
-const planningByWeek = ref({
-  19: clonePlanning(mockPlanningSemaine19),
-  20: clonePlanning(mockPlanningSemaine20)
-})
+const planningByWeek = ref(buildDefaultPlanningByWeek())
 const currentWeek = ref(20)
 
 const ensurePlanningForWeek = (week) => {
@@ -257,7 +281,7 @@ const filterAS = ref('all')
 onMounted(() => {
   const storedData = loadPlanningFromStorage()
   if (storedData) {
-    Object.assign(planningByWeek.value, storedData)
+    planningByWeek.value = mergeStoredPlanningWithDefaults(storedData)
   }
 })
 

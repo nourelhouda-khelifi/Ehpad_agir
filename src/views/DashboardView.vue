@@ -6,7 +6,7 @@
     <div class="rapport-section">
       <div class="rapport-header">
         <h2 class="rapport-title">Rapport</h2>
-        <button class="btn-telecharger">
+        <button class="btn-telecharger" @click="generatePDF()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
@@ -164,6 +164,9 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import autoTable from 'jspdf-autotable'
 import KPICard from '@/components/ui/KPICard.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 import AlertCard from '@/components/ui/AlertCard.vue'
@@ -225,6 +228,251 @@ const handleAlerte = (alerte) => {
     router.push(`/patients/${alerte.patientId}`)
   }
 }
+
+// Génération du PDF récapitulatif
+const generatePDF = async () => {
+  const doc = new jsPDF('p', 'mm', 'a4')
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 15
+  let yPos = margin
+
+  // Couleurs
+  const primaryColor = [37, 99, 235] // #2563EB
+  const lightGray = [241, 245, 249] // #F1F5F9
+  const darkGray = [30, 41, 59] // #1E293B
+
+  // En-tête
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, pageWidth, 25, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(20)
+  doc.setFont(undefined, 'bold')
+  doc.text('EHPAD AGIR', margin, 17)
+  doc.setFontSize(10)
+  doc.setFont(undefined, 'normal')
+  doc.text('Rapport de gestion', pageWidth - margin - 40, 17)
+
+  // Date du rapport
+  yPos = 35
+  doc.setTextColor(...darkGray)
+  doc.setFontSize(10)
+  const today = new Date().toLocaleDateString('fr-FR', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  })
+  doc.text(`Date du rapport: ${today}`, margin, yPos)
+
+  // Section Rapport - Statistiques
+  yPos += 15
+  doc.setFontSize(12)
+  doc.setFont(undefined, 'bold')
+  doc.text('Statistiques Générales', margin, yPos)
+
+  yPos += 10
+  doc.setFillColor(...lightGray)
+  doc.setDrawColor(...primaryColor)
+  doc.setLineWidth(0.5)
+
+  const reportStats = [
+    ['Métrique', 'Valeur'],
+    ['Total Patients', stats.value.totalPatients.toString()],
+    ['Patients Étage 1', rapportData.value.etage1.toString()],
+    ['Patients Étage 2', rapportData.value.etage2.toString()],
+    ['Patients Étage 3', rapportData.value.etage3.toString()],
+    ['Sans douche (⚠️)', stats.value.sansDouche.toString()],
+    ['Soins aujourd\'hui', stats.value.soinsAujourdhui.toString()],
+    ['Alertes actives', stats.value.alertesActives.toString()]
+  ]
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [reportStats[0]],
+    body: reportStats.slice(1),
+    margin: margin,
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 10
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: darkGray
+    },
+    alternateRowStyles: {
+      fillColor: [249, 250, 251]
+    },
+    columnStyles: {
+      0: { cellWidth: 70 },
+      1: { cellWidth: 40, halign: 'right' }
+    }
+  })
+
+  yPos = doc.lastAutoTable.finalY + 15
+
+  // Section Charge AS
+  doc.setFontSize(12)
+  doc.setFont(undefined, 'bold')
+  doc.text('Charge des Aides-Soignants (Semaine)', margin, yPos)
+
+  yPos += 10
+  const chargeData = [
+    ['Aide', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+  ]
+
+  // Ajouter les données des aides
+  aidesSoignants.value.forEach(aide => {
+    const row = [aide.code]
+    if (chargeAS.value.data[aide.code]) {
+      chargeAS.value.data[aide.code].forEach(val => {
+        row.push(val.toString())
+      })
+    }
+    chargeData.push(row)
+  })
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [chargeData[0]],
+    body: chargeData.slice(1),
+    margin: margin,
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 9
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: darkGray
+    },
+    alternateRowStyles: {
+      fillColor: [249, 250, 251]
+    }
+  })
+
+  yPos = doc.lastAutoTable.finalY + 15
+
+  // Section Répartition des soins
+  if (yPos > pageHeight - 50) {
+    doc.addPage()
+    yPos = margin
+  }
+
+  doc.setFontSize(12)
+  doc.setFont(undefined, 'bold')
+  doc.text('Répartition des soins', margin, yPos)
+
+  yPos += 10
+  const repartitionTable = [
+    ['Type de soin', 'Nombre', 'Pourcentage'],
+    ...repartitionData.value.map(item => [
+      item.label,
+      item.count.toString(),
+      `${item.percentage}%`
+    ])
+  ]
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [repartitionTable[0]],
+    body: repartitionTable.slice(1),
+    margin: margin,
+    headStyles: {
+      fillColor: primaryColor,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 10
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: darkGray
+    },
+    alternateRowStyles: {
+      fillColor: [249, 250, 251]
+    },
+    columnStyles: {
+      1: { halign: 'center' },
+      2: { halign: 'right' }
+    }
+  })
+
+  yPos = doc.lastAutoTable.finalY + 15
+
+  // Section Alertes critiques
+  if (yPos > pageHeight - 60) {
+    doc.addPage()
+    yPos = margin
+  }
+
+  doc.setFontSize(12)
+  doc.setFont(undefined, 'bold')
+  doc.text('Alertes Critiques', margin, yPos)
+
+  if (alertes.value.length > 0) {
+    yPos += 10
+    const alertesData = [
+      ['Patient', 'Chambre', 'Niveau', 'Message']
+    ]
+
+    alertes.value.slice(0, 10).forEach(alerte => {
+      alertesData.push([
+        alerte.patientNom || 'N/A',
+        alerte.chambre || 'N/A',
+        alerte.niveau || 'Normal',
+        alerte.message || ''
+      ])
+    })
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [alertesData[0]],
+      body: alertesData.slice(1),
+      margin: margin,
+      headStyles: {
+        fillColor: [239, 68, 68], // Rouge pour les alertes
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: darkGray
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      },
+      columnStyles: {
+        3: { cellWidth: 60 }
+      }
+    })
+  } else {
+    yPos += 10
+    doc.setFontSize(9)
+    doc.setTextColor(100, 100, 100)
+    doc.text('Aucune alerte critique', margin, yPos)
+  }
+
+  // Pied de page
+  const pageCount = doc.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text(
+      `Page ${i} sur ${pageCount}`,
+      pageWidth / 2,
+      pageHeight - 10,
+      { align: 'center' }
+    )
+  }
+
+  // Télécharger le PDF
+  doc.save(`rapport-ehpad-${today.replace(/ /g, '-')}.pdf`)
+}
+
 </script>
 
 <style scoped>
