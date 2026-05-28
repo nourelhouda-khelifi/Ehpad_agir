@@ -122,7 +122,7 @@
         <template #actions>
           <span class="section-meta">Semaine 19</span>
         </template>
-        <ChargeASList :aides="aidesSoignants" :charge-par-periode="mockChargePeriode" />
+        <ChargeASList :aides="aidesSoignants" :charge-par-periode="chargeAidesSoignants" />
       </SectionCard>
       <SectionCard title="Répartition des soins" icon="🥧">
         <RepartitionChart :data="repartitionData" />
@@ -147,7 +147,7 @@
       </template>
       <div class="alertes-list">
         <AlertCard
-          v-for="alerte in alertes"
+          v-for="alerte in alertesCritiques"
           :key="alerte.id"
           :niveau="alerte.niveau"
           :title="alerte.patientNom + (alerte.chambre ? ` — ${alerte.chambre}` : '')"
@@ -162,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -173,37 +173,53 @@ import AlertCard from '@/components/ui/AlertCard.vue'
 import BarChart from '@/components/stats/BarChart.vue'
 import ChargeASList from '@/components/dashboard/ChargeASList.vue'
 import RepartitionChart from '@/components/dashboard/RepartitionChart.vue'
-import { mockAidesSoignants } from '@/data/mockAides.js'
-import { mockPatients } from '@/data/mockPatients.js'
-import { mockAlertes } from '@/data/mockAlertes.js'
+import { useDashboardStats } from '@/composables/useDashboardStats.js'
 import { mockChargeASSemaine } from '@/data/mockStats.js'
-import { mockChargePeriode } from '@/data/mockChargeJour.js'
 
 const router = useRouter()
-const aidesSoignants = ref(mockAidesSoignants)
-const patients = ref(mockPatients)
-const alertes = ref(mockAlertes)
+const { patients, alertes, aidesSoignants, stats: dashboardStats, alertesCritiques, repartitionSoins, chargeAidesSoignants, loadDashboardData, loading } = useDashboardStats()
+
+// Charger les données au montage
+onMounted(() => {
+  loadDashboardData()
+})
 
 const stats = computed(() => ({
-  totalPatients: patients.value.length,
-  sansDouche: patients.value.filter(p => p.sansDouche).length,
-  soinsAujourdhui: 124,
-  alertesActives: alertes.value.length
+  totalPatients: dashboardStats.value.totalPatients,
+  sansDouche: dashboardStats.value.sansDouche,
+  soinsAujourdhui: dashboardStats.value.soinsAujourdhui,
+  alertesActives: dashboardStats.value.alertesActives
 }))
 
-const repartitionData = ref([
-  { label: 'Toilettes', count: 340, percentage: 40, color: '#378ADD' },
-  { label: 'Douches', count: 212, percentage: 25, color: '#1D9E75' },
-  { label: 'Repas', count: 169, percentage: 20, color: '#EF9F27' },
-  { label: 'Couchers', count: 126, percentage: 15, color: '#7F77DD' }
-])
+// Rapport par étage
+const rapportData = computed(() => ({
+  etage1: dashboardStats.value.patientsByFloor[1] || 0,
+  etage2: dashboardStats.value.patientsByFloor[2] || 0,
+  etage3: dashboardStats.value.patientsByFloor[3] || 0,
+}))
 
-// Rapport par étage — adapte ces valeurs à tes données réelles
-const rapportData = ref({
-  etage1: 20,
-  etage2: 30,
-  etage3: 20,
+// Répartition des soins depuis les vraies données
+const repartitionData = computed(() => {
+  const data = repartitionSoins.value.map(item => ({
+    label: item.label,
+    count: item.count,
+    percentage: item.percentage,
+    color: getColorForSoin(item.label)
+  }))
+  return data.length > 0 ? data : [
+    { label: 'Aucune donnée', count: 0, percentage: 0, color: '#E5E7EB' }
+  ]
 })
+
+const getColorForSoin = (label) => {
+  const colors = {
+    'TOILETTE': '#378ADD',
+    'DOUCHE': '#1D9E75',
+    'REPAS': '#EF9F27',
+    'COUCHER': '#7F77DD'
+  }
+  return colors[label?.toUpperCase()] || '#888780'
+}
 
 // Charge AS
 const chargeAS = ref(mockChargeASSemaine)
