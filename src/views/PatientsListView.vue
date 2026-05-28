@@ -1,5 +1,19 @@
 <template>
   <div class="patients-list-view">
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-container">
+      <div class="spinner"></div>
+      <p>Chargement des patients...</p>
+    </div>
+
+    <!-- Error State -->
+    <div v-if="error" class="error-container">
+      <p>❌ Erreur : {{ error }}</p>
+      <button class="btn btn-primary" @click="loadPatients">Réessayer</button>
+    </div>
+
+    <!-- Main Content -->
+    <template v-if="!loading && !error">
     <!-- Header de la page -->
     <div class="page-title-bar">
       <div>
@@ -12,7 +26,7 @@
         <button class="btn btn-secondary" @click="generatePatientsPDF()">
           📥 Export
         </button>
-        <button class="btn btn-primary">
+        <button class="btn btn-primary" @click="showFormModal = true">
           ➕ Nouveau patient
         </button>
       </div>
@@ -127,11 +141,19 @@
       :total="filteredPatients.length"
       @change="currentPage = $event"
     />
+    </template>
   </div>
+
+  <!-- Modal Création Patient -->
+  <PatientFormModal 
+    :is-open="showFormModal"
+    @close="showFormModal = false"
+    @patient-created="onPatientCreated"
+  />
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -142,13 +164,24 @@ import CategoryFilter from '@/components/ui/CategoryFilter.vue'
 import PriorityFilter from '@/components/ui/PriorityFilter.vue'
 import PatientsTable from '@/components/patients/PatientsTable.vue'
 import Pagination from '@/components/ui/Pagination.vue'
+import PatientFormModal from '@/components/forms/PatientFormModal.vue'
 
 import { mockPatients } from '@/data/mockPatients.js'
 import { PATIENT_PROFILS, PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
+import { usePatients } from '@/composables/usePatients'
 
 const router = useRouter()
 
-const patients = ref(mockPatients)
+// API Integration: Charger les patients du backend
+const { patients, loading, error, loadPatients } = usePatients()
+
+// Modal
+const showFormModal = ref(false)
+
+// Charger au montage
+onMounted(() => {
+  loadPatients()
+})
 
 // Filtres
 const searchQuery = ref('')
@@ -384,6 +417,12 @@ const generatePatientsPDF = () => {
 const openPatient = (id) => {
   router.push(`/patients/${id}`)
 }
+
+// Gérer la création d'un nouveau patient
+const onPatientCreated = (newPatient) => {
+  // Recharger la liste des patients
+  loadPatients()
+}
 </script>
 
 <style scoped>
@@ -541,5 +580,59 @@ const openPatient = (id) => {
   .quick-filters {
     justify-content: flex-start;
   }
+}
+
+/* Loading & Error States */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #E2E8F0;
+  border-top: 4px solid #2563EB;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-container p {
+  font-size: 14px;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: #FEE2E2;
+  border: 1px solid #FECACA;
+  border-radius: 12px;
+  color: #DC2626;
+}
+
+.error-container p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.error-container .btn {
+  width: fit-content;
 }
 </style>
