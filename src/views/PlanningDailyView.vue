@@ -343,8 +343,10 @@ const patientsFiltres = computed(() => {
 // Stats
 const totalActivites = computed(() => {
   let count = 0
-  Object.values(currentPlanning.value).forEach(patientDays => {
-    Object.values(patientDays).forEach(dayActivities => {
+  if (!currentPlanning.value) return 0
+  
+  Object.values(currentPlanning.value || {}).forEach(patientDays => {
+    Object.values(patientDays || {}).forEach(dayActivities => {
       // dayActivities is now { activity: { as, duree, moment } }
       Object.values(dayActivities || {}).forEach(activity => {
         if (activity) count++
@@ -357,7 +359,10 @@ const totalActivites = computed(() => {
 // Fonctions
 const getActivityForPatient = (patientId, jour) => {
   // Return the activities object for a given day (could have multiple activities)
-  return currentPlanning.value[patientId]?.[jour]
+  if (!currentPlanning.value || !currentPlanning.value[patientId]) {
+    return null
+  }
+  return currentPlanning.value[patientId][jour] || null
 }
 
 const getFilteredActivities = (patientId, jour) => {

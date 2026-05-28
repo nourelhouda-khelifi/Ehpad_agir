@@ -10,7 +10,7 @@
       </div>
       <div class="page-actions">
         <button class="btn btn-secondary">📅 Gérer absences</button>
-        <button class="btn btn-primary">➕ Ajouter AS</button>
+        <button class="btn btn-primary" @click="isModalOpen = true">➕ Ajouter AS</button>
       </div>
     </div>
 
@@ -88,29 +88,108 @@
     <ASDetailModal
       v-if="modalAS"
       :as="modalAS"
-      :charge-jour="chargeJour[modalAS.code] || {}"
-      :patients="patientsParAS[modalAS.code] || []"
+      :charge-jour="modalChargeJour"
+      :patients="modalPatients"
       @close="modalAS = null"
+    />
+
+    <!-- Modal Ajout -->
+    <AddAideSoignantModal
+      :is-open="isModalOpen"
+      @close="isModalOpen = false"
+      @created="onAideSoignantCreated"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
-import { mockAidesSoignants } from '@/data/mockAides.js'
+import { useAidesSoignants } from '@/composables/useAidesSoignants.js'
+import { useAideSoignantCharge } from '@/composables/useAideSoignantCharge.js'
+import { planningService } from '@/api/services/planningService.js'
 import { mockChargeJour, mockChargeJourPeriode, mockPatientsParAS } from '@/data/mockChargeJour.js'
 
 import ASCard from '@/components/aides/ASCard.vue'
 import ChargeHeatmap from '@/components/aides/ChargeHeatmap.vue'
 import ASDetailModal from '@/components/aides/ASDetailModal.vue'
+import AddAideSoignantModal from '@/components/forms/AddAideSoignantModal.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 
-const chargeJour = ref(mockChargeJour)
+// Composable pour charger les aides-soignants depuis l'API
+const { aidesSoignants, loadAidesSoignants } = useAidesSoignants()
+
+// Composable pour charger la charge d'un AS
+const { plannings, chargeParJour, patientCount, loadChargeForAideSoignant } = useAideSoignantCharge()
+
+const chargeJour = ref({})
 const chargeJourPeriode = ref(mockChargeJourPeriode)
 const patientsParAS = ref(mockPatientsParAS)
 const modalAS = ref(null)
+const modalChargeJour = ref({})
+const modalPatients = ref([])
+const isModalOpen = ref(false)
 const heatmapView = ref('jour') // 'jour', 'matin', 'soir'
+const loading = ref(false)
+
+/**
+ * Calculer la charge par jour pour un AS
+ */
+const calculateChargeParJour = (plannings) => {
+  const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+  const chargeByDay = {}
+
+  // Initialiser tous les jours
+  days.forEach(day => {
+    chargeByDay[day] = 0
+  })
+
+  // Additionner les minutes pour chaque jour
+  plannings.forEach(planning => {
+    if (planning.datePlanification) {
+      const date = new Date(planning.datePlanification)
+      const dayIndex = date.getDay()
+      const frenchDayIndex = dayIndex === 0 ? 6 : dayIndex - 1
+      const day = days[frenchDayIndex]
+      
+      chargeByDay[day] += planning.dureeMinutes || 0
+    }
+  })
+
+  return chargeByDay
+}
+
+/**
+ * Charger la charge de tous les aides-soignants depuis l'API
+ */
+const loadAllAidesSoignantCharges = async () => {
+  loading.value = true
+  const allCharges = {}
+
+  try {
+    // Charger la charge pour chaque AS en parallèle
+    const chargePromises = aidesSoignants.value.map(async (as) => {
+      try {
+        const planningsForAS = await planningService.getByAideSoignant(as.id)
+        allCharges[as.code] = calculateChargeParJour(planningsForAS)
+      } catch (err) {
+        console.error(`Erreur lors du chargement de la charge pour ${as.code}:`, err)
+        allCharges[as.code] = {}
+      }
+    })
+
+    await Promise.all(chargePromises)
+    chargeJour.value = allCharges
+  } finally {
+    loading.value = false
+  }
+}
+
+// Charger les aides-soignants et leur charge au montage
+onMounted(async () => {
+  await loadAidesSoignants()
+  await loadAllAidesSoignantCharges()
+})
 
 // Données affichées selon le filtre
 const chargeAffichee = computed(() => {
@@ -134,13 +213,21 @@ const chargeAffichee = computed(() => {
 
 // Calcul des AS avec leur niveau
 const aides = computed(() => {
-  return mockAidesSoignants.map(as => {
-    const charge = as.chargeMinutes
+  return aidesSoignants.value.map(as => {
+    // Calculer la charge totale depuis chargeJour
+    const charge = Object.values(chargeJour.value[as.code] || {}).reduce((sum, min) => sum + (min || 0), 0)
     let niveau = 'leger'
     if (charge >= 120) niveau = 'surcharge'
     else if (charge >= 90) niveau = 'eleve'
     else if (charge >= 60) niveau = 'normal'
-    return { ...as, niveau }
+    
+    return { 
+      ...as, 
+      niveau,
+      chargeMinutes: charge,
+      nbPatients: 0, // À calculer depuis les plannings si nécessaire
+      nbSoins: 0     // À calculer depuis les plannings si nécessaire
+    }
   })
 })
 
@@ -168,8 +255,51 @@ const recommandation = computed(() => {
   }
 })
 
-const openDetail = (as) => {
+const openDetail = async (as) => {
   modalAS.value = as
+  
+  // Charger la charge réelle depuis l'API
+  try {
+    await loadChargeForAideSoignant(as.id)
+    
+    // Construire modalChargeJour à partir des données réelles
+    const chargeByDay = {}
+    const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    days.forEach(day => {
+      chargeByDay[day] = chargeParJour.value[day] || 0
+    })
+    modalChargeJour.value = chargeByDay
+    
+    // Récupérer les patients uniques du planning
+    const patients = new Map()
+    plannings.value.forEach(planning => {
+      if (planning.patientId && !patients.has(planning.patientId)) {
+        patients.set(planning.patientId, {
+          id: planning.patientId,
+          nom: planning.patientNom || `Patient ${planning.patientId}`,
+          chambre: planning.patientChambre || '-',
+          soinsParSemaine: 0
+        })
+      }
+    })
+    
+    // Compter les soins par patient
+    plannings.value.forEach(planning => {
+      if (planning.patientId && patients.has(planning.patientId)) {
+        patients.get(planning.patientId).soinsParSemaine++
+      }
+    })
+    
+    modalPatients.value = Array.from(patients.values())
+  } catch (err) {
+    console.error('Erreur lors du chargement de la charge:', err)
+  }
+}
+
+const onAideSoignantCreated = async (newAideSoignant) => {
+  // L'AS a été ajouté au composable, recharger la liste et les charges
+  await loadAidesSoignants()
+  await loadAllAidesSoignantCharges()
 }
 </script>
 
