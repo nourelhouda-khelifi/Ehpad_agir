@@ -8,7 +8,9 @@ export const patientAlertService = {
   async getAll() {
     const response = await fetch(`${API_CONFIG.BASE_URL}/api/alertes`)
     if (!response.ok) throw new Error(`Erreur: ${response.statusText}`)
-    return response.json()
+    const data = await response.json()
+    // Gérer à la fois les réponses array et {value: [...]} 
+    return Array.isArray(data) ? data : (data.value || [])
   },
 
   /**

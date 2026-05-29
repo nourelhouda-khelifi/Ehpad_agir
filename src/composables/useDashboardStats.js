@@ -158,7 +158,7 @@ export const useDashboardStats = () => {
    */
   const stats = computed(() => {
     const totalPatients = patients.value.length
-    const alertesActives = alertes.value.filter(a => !a.resolu).length
+    const alertesActives = alertes.value.filter(a => !a.resolue).length
     const currentWeek = getCurrentWeek()
     const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
@@ -204,8 +204,17 @@ export const useDashboardStats = () => {
    */
   const alertesCritiques = computed(() => {
     return alertes.value
-      .filter(a => !a.resolu)
-      .sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation))
+      .map(a => {
+        // Enrichir avec le nom du patient
+        const patient = patients.value.find(p => p.id === a.patientId)
+        return {
+          ...a,
+          patientNom: patient ? `${patient.prenom} ${patient.nom}` : 'Patient inconnu',
+          chambre: patient?.numeroChambre
+        }
+      })
+      .filter(a => !a.resolue)
+      .sort((a, b) => new Date(b.createdAt || b.dateCreation) - new Date(a.createdAt || a.dateCreation))
       .slice(0, 5)
   })
 
