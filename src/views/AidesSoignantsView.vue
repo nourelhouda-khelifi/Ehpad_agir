@@ -9,7 +9,7 @@
         </p>
       </div>
       <div class="page-actions">
-        <button class="btn btn-secondary">📅 Gérer absences</button>
+        <button class="btn btn-secondary" @click="openAbsencesModal()">📅 Gérer absences</button>
         <button class="btn btn-primary" @click="isModalOpen = true">➕ Ajouter AS</button>
       </div>
     </div>
@@ -99,6 +99,15 @@
       @close="isModalOpen = false"
       @created="onAideSoignantCreated"
     />
+
+    <!-- Modal Gestion des absences -->
+    <GererAbsencesModal
+      v-if="aides.length > 0"
+      :is-open="isAbsencesModalOpen"
+      :aide-soignant-id="aides[0].id"
+      :aide-soignant-nom="aides[0].prenom + ' ' + aides[0].nom"
+      @close="isAbsencesModalOpen = false"
+    />
   </div>
 </template>
 
@@ -113,6 +122,7 @@ import ASCard from '@/components/aides/ASCard.vue'
 import ChargeHeatmap from '@/components/aides/ChargeHeatmap.vue'
 import ASDetailModal from '@/components/aides/ASDetailModal.vue'
 import AddAideSoignantModal from '@/components/forms/AddAideSoignantModal.vue'
+import GererAbsencesModal from '@/components/GererAbsencesModal.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 
 // Date de base pour le calcul des semaines
@@ -131,6 +141,9 @@ const modalAS = ref(null)
 const modalChargeJour = ref({})
 const modalPatients = ref([])
 const isModalOpen = ref(false)
+const isAbsencesModalOpen = ref(false)
+const selectedAideSoignantId = ref(null)
+const selectedAideSoignantNom = ref('')
 const heatmapView = ref('jour') // 'jour', 'matin', 'soir'
 const loading = ref(false)
 const executions = ref([])
@@ -322,6 +335,12 @@ const openDetail = async (as) => {
   } catch (err) {
     console.error('Erreur lors du chargement de la charge:', err)
   }
+}
+
+const openAbsencesModal = () => {
+  isAbsencesModalOpen.value = true
+  selectedAideSoignantId.value = null
+  selectedAideSoignantNom.value = 'Tous les aides-soignants'
 }
 
 const onAideSoignantCreated = async (newAideSoignant) => {
