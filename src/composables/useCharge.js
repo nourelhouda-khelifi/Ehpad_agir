@@ -1,8 +1,7 @@
 import { computed } from 'vue'
-import { mockAidesSoignants } from '@/data/mockAides.js'
 import { DUREE_DOUCHE } from '@/data/mockPlanning.js'
 
-export function useCharge(planning) {
+export function useCharge(planning, aidesSoignants) {
   const calculerChargeAS = (codeAS, planningData) => {
     let totalMinutes = 0
     let nbActivites = 0
@@ -55,14 +54,14 @@ export function useCharge(planning) {
   }
 
   const aidesSoignantsAvecCharge = computed(() => {
-    return mockAidesSoignants.map((as) => {
+    return aidesSoignants.value.map((as) => {
       const charge = calculerChargeAS(as.code, planning.value)
       const niveau = calculerNiveau(charge.totalMinutes)
 
       return {
         ...as,
         chargeMinutes: charge.totalMinutes,
-        nbDouches: charge.nbDouches,
+        nbActivites: charge.nbActivites,
         nbPatients: charge.nbPatients,
         niveau,
         labelNiveau: getLabelNiveau(niveau)

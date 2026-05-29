@@ -7,12 +7,14 @@ import { patientService } from '../api/services/patientService.js'
 import { patientAlertService } from '../api/services/patientAlertService.js'
 import { executionSoinService } from '../api/services/executionSoinService.js'
 import { aideSoignantService } from '../api/services/aideSoignantService.js'
+import { planningService } from '../api/services/planningService.js'
 
 export const useDashboardStats = () => {
   const patients = ref([])
   const alertes = ref([])
   const executions = ref([])
   const aidesSoignants = ref([])
+  const weeklyChargeData = ref({})
   const loading = ref(false)
   const error = ref(null)
 
@@ -69,6 +71,56 @@ export const useDashboardStats = () => {
   }
 
   /**
+   * Charger la charge hebdomadaire des aides-soignants
+   */
+  const loadWeeklyCharge = async () => {
+    const chargeData = {}
+
+    try {
+      // Charger la charge pour chaque AS en parallèle
+      const chargePromises = aidesSoignants.value.map(async (as) => {
+        try {
+          const plannings = await planningService.getByAideSoignant(as.id)
+          
+          // Initialiser les jours
+          const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+          const chargeByDay = {}
+          days.forEach(day => {
+            chargeByDay[day] = 0
+          })
+
+          // Additionner par jour
+          plannings.forEach(planning => {
+            if (planning.datePlanification) {
+              const date = new Date(planning.datePlanification)
+              const dayIndex = date.getDay()
+              const frenchDayIndex = dayIndex === 0 ? 6 : dayIndex - 1
+              const day = days[frenchDayIndex]
+              
+              chargeByDay[day] += planning.dureeMinutes || 0
+            }
+          })
+
+          chargeData[as.code] = chargeByDay
+        } catch (err) {
+          console.error(`Erreur lors du chargement de la charge pour ${as.code}:`, err)
+          const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+          chargeData[as.code] = {}
+          days.forEach(day => {
+            chargeData[as.code][day] = 0
+          })
+        }
+      })
+
+      await Promise.all(chargePromises)
+      weeklyChargeData.value = chargeData
+    } catch (err) {
+      console.error('Erreur lors du chargement de la charge hebdomadaire:', err)
+      weeklyChargeData.value = {}
+    }
+  }
+
+  /**
    * Charger toutes les données du dashboard
    */
   const loadDashboardData = async () => {
@@ -82,6 +134,8 @@ export const useDashboardStats = () => {
         loadTodayExecutions(),
         loadAidesSoignants()
       ])
+      // Charger la charge hebdomadaire après avoir chargé les aides-soignants
+      await loadWeeklyCharge()
     } finally {
       loading.value = false
     }
@@ -158,6 +212,39 @@ export const useDashboardStats = () => {
     return charges
   })
 
+  /**
+   * Charge hebdomadaire formatée pour le graphique BarChart
+   */
+  const chargeASParSemaine = computed(() => {
+    const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    
+    const colors = {
+      SE1: '#97C459',
+      SE2: '#E24B4A',
+      SC1: '#378ADD',
+      SC2: '#5DCAA5',
+      SG: '#888780'
+    }
+
+    // Créer les séries
+    const series = Object.entries(weeklyChargeData.value).map(([code, chargeByDay]) => ({
+      code,
+      color: colors[code] || '#888780',
+      values: days.map(day => chargeByDay[day] || 0)
+    }))
+
+    return {
+      jours: days,
+      data: series.length > 0 ? series : [
+        { code: 'SE1', color: colors.SE1, values: [0, 0, 0, 0, 0, 0, 0] },
+        { code: 'SE2', color: colors.SE2, values: [0, 0, 0, 0, 0, 0, 0] },
+        { code: 'SC1', color: colors.SC1, values: [0, 0, 0, 0, 0, 0, 0] },
+        { code: 'SC2', color: colors.SC2, values: [0, 0, 0, 0, 0, 0, 0] },
+        { code: 'SG', color: colors.SG, values: [0, 0, 0, 0, 0, 0, 0] }
+      ]
+    }
+  })
+
   return {
     patients,
     alertes,
@@ -169,6 +256,7 @@ export const useDashboardStats = () => {
     alertesCritiques,
     repartitionSoins,
     chargeAidesSoignants,
+    chargeASParSemaine,
     loadPatients,
     loadAlertes,
     loadTodayExecutions,

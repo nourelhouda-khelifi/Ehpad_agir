@@ -116,11 +116,11 @@
           <PlanningCell
             v-for="jour in jours"
             :key="jour.key"
-            :as-code="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.as"
-            :duree="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.duree"
-            :moment="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.moment"
-            :activity-data="currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]"
-            :is-warning="isPatientSansDouche(patient.id) && !currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.as && currentPlanning[patient.id]?.[jour.key]?.[selectedActivity]?.type !== 'shared'"
+            :as-code="currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.as"
+            :duree="currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.duree"
+            :moment="currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.moment"
+            :activity-data="currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]"
+            :is-warning="isPatientSansDouche(patient.id) && !currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.as && currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.type !== 'shared'"
             @click="openModal(patient, jour.key)"
           />
         </div>
@@ -133,9 +133,9 @@
       :jour="modalJour"
       :semaine="currentWeek"
       :activite="selectedActivity"
-      :as-actuel="currentPlanning[modalPatient.id]?.[modalJour]?.[selectedActivity]?.as"
-      :duree-actuelle="currentPlanning[modalPatient.id]?.[modalJour]?.[selectedActivity]?.duree || (selectedActivity === 'douche' ? 30 : null)"
-      :moment-actuel="currentPlanning[modalPatient.id]?.[modalJour]?.[selectedActivity]?.moment || 'matin'"
+      :as-actuel="currentPlanning?.[modalPatient.id]?.[modalJour]?.[selectedActivity]?.as"
+      :duree-actuelle="currentPlanning?.[modalPatient.id]?.[modalJour]?.[selectedActivity]?.duree || (selectedActivity === 'douche' ? 30 : null)"
+      :moment-actuel="currentPlanning?.[modalPatient.id]?.[modalJour]?.[selectedActivity]?.moment || 'matin'"
       :aides-avec-charge="aidesSoignantsAvecCharge"
       :recommandation="recommanderAS"
       @close="closeModal"
@@ -154,7 +154,6 @@ import CalendarWeekSelector from '@/components/ui/CalendarWeekSelector.vue'
 import PlanningCell from '@/components/planning/PlanningCell.vue'
 import ASSelectorModal from '@/components/planning/ASSelectorModal.vue'
 import { mockPatients } from '@/data/mockPatients.js'
-import { mockAidesSoignants } from '@/data/mockAides.js'
 import { clonePlanning, createEmptyPlanningForPatients, mockPlanningSemaine19, mockPlanningSemaine20 } from '@/data/mockPlanning.js'
 import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 import { useCharge } from '@/composables/useCharge.js'
@@ -211,6 +210,8 @@ const mergeStoredPlanningWithDefaults = (storedPlanning) => {
 }
 
 const patients = ref(mockPatients)
+const aidesSoignants = ref([])
+const debugInfo = ref('initial state')
 const planningByWeek = ref(buildDefaultPlanningByWeek())
 
 const currentWeek = ref(20)
@@ -260,8 +261,8 @@ watch(currentWeek, (week) => {
 }, { immediate: true })
 
 const currentPlanning = computed(() => planningByWeek.value[currentWeek.value])
-const { aidesSoignantsAvecCharge, recommanderAS } = useCharge(currentPlanning)
-const aidesCodes = computed(() => mockAidesSoignants.map((as) => as.code))
+const { aidesSoignantsAvecCharge, recommanderAS } = useCharge(currentPlanning, aidesSoignants)
+const aidesCodes = computed(() => aidesSoignants.value.map((as) => as.code))
 
 const weekLabel = computed(() => {
   const start = new Date(baseWeekStart)
@@ -280,7 +281,7 @@ const formatName = (patient) => {
 const countEtage = (etage) => patients.value.filter((patient) => patient.etage === etage).length
 
 const rowHasAS = (patientId, asCode) => {
-  const planningPatient = currentPlanning.value[patientId]
+  const planningPatient = currentPlanning.value?.[patientId]
   if (!planningPatient) return false
   return Object.values(planningPatient).some(dayActivities => {
     return dayActivities[selectedActivity.value]?.as === asCode
@@ -288,7 +289,7 @@ const rowHasAS = (patientId, asCode) => {
 }
 
 const isPatientSansDouche = (patientId) => {
-  const planningPatient = currentPlanning.value[patientId]
+  const planningPatient = currentPlanning.value?.[patientId]
   if (!planningPatient) return true
   return Object.values(planningPatient).every((dayActivities) => !dayActivities || !dayActivities[selectedActivity.value])
 }
@@ -354,12 +355,47 @@ const closeModal = () => {
   modalJour.value = null
 }
 
-// Charger les données du localStorage au montage
+// Charger les données du localStorage et de l'API au montage
 onMounted(() => {
+  // Charger d'abord le localStorage IMMÉDIATEMENT
   const storedData = loadPlanningFromStorage()
   if (storedData) {
     planningByWeek.value = mergeStoredPlanningWithDefaults(storedData)
   }
+  
+  // Puis charger l'API dans une promesse séparée
+  setTimeout(() => {
+    fetch('http://localhost:8081/api/aides-soignants')
+      .then(r => r.json())
+      .then(data => {
+        aidesSoignants.value = data
+        
+        // Nettoyer la planning pour ne garder que les aides qui existent
+        if (data.length > 0) {
+          const validAideCodes = new Set(data.map(as => as.code))
+          Object.entries(planningByWeek.value).forEach(([week, weekPlanning]) => {
+            Object.entries(weekPlanning).forEach(([patientId, dayPlannings]) => {
+              Object.entries(dayPlannings).forEach(([day, activities]) => {
+                Object.entries(activities).forEach(([activity, actData]) => {
+                  if (actData?.type === 'shared') {
+                    actData.ases = actData.ases?.filter(code => validAideCodes.has(code))
+                    actData.durees = actData.durees?.slice(0, actData.ases.length)
+                    if (actData.ases.length === 0) {
+                      delete activities[activity]
+                    }
+                  } else if (actData?.as && !validAideCodes.has(actData.as)) {
+                    delete activities[activity]
+                  }
+                })
+              })
+            })
+          })
+        }
+      })
+      .catch(e => {
+        console.error('Erreur fetch aides-soignants:', e)
+      })
+  }, 100)
 })
 
 // Sauvegarder les données PROFONDÉMENT dans localStorage

@@ -132,8 +132,8 @@
     <!-- Graphique charge AS -->
     <SectionCard title="Charge des AS sur la semaine" icon="📊">
       <BarChart
-        :jours="chargeAS.jours"
-        :series="seriesCharge"
+        :jours="chargeASParSemaine.jours"
+        :series="chargeASParSemaine.data"
         :threshold="120"
       />
     </SectionCard>
@@ -174,10 +174,9 @@ import BarChart from '@/components/stats/BarChart.vue'
 import ChargeASList from '@/components/dashboard/ChargeASList.vue'
 import RepartitionChart from '@/components/dashboard/RepartitionChart.vue'
 import { useDashboardStats } from '@/composables/useDashboardStats.js'
-import { mockChargeASSemaine } from '@/data/mockStats.js'
 
 const router = useRouter()
-const { patients, alertes, aidesSoignants, stats: dashboardStats, alertesCritiques, repartitionSoins, chargeAidesSoignants, loadDashboardData, loading } = useDashboardStats()
+const { patients, alertes, aidesSoignants, stats: dashboardStats, alertesCritiques, repartitionSoins, chargeAidesSoignants, chargeASParSemaine, loadDashboardData, loading } = useDashboardStats()
 
 // Charger les données au montage
 onMounted(() => {
@@ -221,22 +220,9 @@ const getColorForSoin = (label) => {
   return colors[label?.toUpperCase()] || '#888780'
 }
 
-// Charge AS
-const chargeAS = ref(mockChargeASSemaine)
-
 const seriesCharge = computed(() => {
-  const colors = {
-    SE1: '#97C459',
-    SE2: '#E24B4A',
-    SC1: '#378ADD',
-    SC2: '#5DCAA5',
-    SG: '#888780'
-  }
-  return Object.entries(chargeAS.value.data).map(([code, values]) => ({
-    code,
-    color: colors[code],
-    values
-  }))
+  // Utiliser les données réelles du composable
+  return chargeASParSemaine.value.data
 })
 
 const handleAlerte = (alerte) => {

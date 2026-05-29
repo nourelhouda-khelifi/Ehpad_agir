@@ -33,8 +33,8 @@ const routes = [
     component: PatientProfileView
   },
   {
-    path: '/planning/douches',
-    name: 'PlanningHebdoDouches',
+    path: '/activites',
+    name: 'Activites',
     component: PlanningWeeklyView
   },
   {
