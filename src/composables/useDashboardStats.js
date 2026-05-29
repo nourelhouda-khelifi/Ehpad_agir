@@ -159,15 +159,23 @@ export const useDashboardStats = () => {
   const stats = computed(() => {
     const totalPatients = patients.value.length
     const alertesActives = alertes.value.filter(a => !a.resolu).length
+    const currentWeek = getCurrentWeek()
+    const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
     // Récupérer les exécutions pour aujourd'hui
     const today = new Date().toISOString().split('T')[0]
     const todayExecutions = executions.value.filter(e => e.dateExecution === today)
     const soinsAujourdhui = todayExecutions.length
 
-    // Compter les patients sans douche aujourd'hui
+    // Compter les patients sans douche pour la semaine actuelle
     const patientIdsWithDouche = new Set()
-    todayExecutions.forEach(exec => {
+    executions.value.forEach(exec => {
+      const execDate = new Date(exec.dateExecution + 'T00:00:00')
+      const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+      const execWeek = 19 + Math.floor(dayDiff / 7)
+      
+      if (execWeek !== currentWeek) return
+      
       const typeSoin = typesSoin.value.find(t => t.id === exec.typeSoinId)
       if (typeSoin && typeSoin.code === 'DOUCHE') {
         patientIdsWithDouche.add(exec.patientId)
