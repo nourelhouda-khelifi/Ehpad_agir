@@ -515,18 +515,13 @@ const saveActivityToBackend = (data) => {
   const dayIndex = joursSemaine.indexOf(modalJour.value)
   const weekOffset = currentWeek.value - 19 // week 19 = 0, week 20 = 1, week 21 = 2, etc.
   const dateObj = new Date(baseWeekStart)
-  
-  console.log('DEBUG: currentWeek.value=', currentWeek.value, 'weekOffset=', weekOffset, 'dayIndex=', dayIndex, 'baseWeekStart=', baseWeekStart)
-  
   dateObj.setDate(baseWeekStart.getDate() + (weekOffset * 7) + dayIndex)
-  
-  console.log('DEBUG: computed dateObj=', dateObj.toISOString().split('T')[0])
   
   const payload = {
     patientId: modalPatient.value.id,
     typeSoinId: typeSoinId,
     aideSoignantId: aideSoignantId,
-    dateExecution: dateObj.toISOString().split('T')[0],
+    dateExecution: dateObj.toLocaleDateString('en-CA'),
     heureExecution: getMomentAsHeure(data.moment || 'matin'),
     statut: 'PLANIFIE',
     commentaire: `Durée: ${data.duree || 'auto'} min${data.type === 'shared' ? ` - 2 aides: ${data.ases.join(', ')}` : ''}`
