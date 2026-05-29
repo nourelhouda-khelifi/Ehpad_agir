@@ -423,7 +423,9 @@ onMounted(() => {
     fetch('http://localhost:8081/api/executions')
       .then(r => r.json())
       .then(data => {
-        // Pour chaque execution, déterminer la semaine et le jour
+        // Grouper les executions par patient/date/activity/typeSoin pour détecter les 2-aides
+        const grouped = {}
+        
         data.forEach(execution => {
           const execDate = new Date(execution.dateExecution + 'T00:00:00')
           
@@ -448,23 +450,55 @@ onMounted(() => {
           if (hour >= 18) moment = hour === 18 ? '18-19' : hour === 19 ? '19-20' : 'soir'
           else if (hour >= 14) moment = 'soir'
           
-          // Ajouter à la structure planningByWeek
-          if (!planningByWeek.value[week]) {
-            planningByWeek.value[week] = {}
-          }
-          if (!planningByWeek.value[week][execution.patientId]) {
-            planningByWeek.value[week][execution.patientId] = {}
-          }
-          if (!planningByWeek.value[week][execution.patientId][joursSemaine[dayOfWeek]]) {
-            planningByWeek.value[week][execution.patientId][joursSemaine[dayOfWeek]] = {}
+          // Clé de groupement: patient/week/day/activity/moment
+          const groupKey = `${execution.patientId}_${week}_${dayOfWeek}_${activity}_${moment}`
+          
+          if (!grouped[groupKey]) {
+            grouped[groupKey] = {
+              week,
+              patientId: execution.patientId,
+              day: joursSemaine[dayOfWeek],
+              activity,
+              moment,
+              aides: [],
+              duree: execution.commentaire?.match(/Durée: (\d+)/)?.[1] || 30,
+              commentaire: execution.commentaire
+            }
           }
           
-          // Créer l'objet activité
-          const asCode = execution.aideSoignant?.code || 'SANS_AS'
-          planningByWeek.value[week][execution.patientId][joursSemaine[dayOfWeek]][activity] = {
-            as: asCode,
-            duree: execution.commentaire?.match(/Durée: (\d+)/)?.[1] || 30,
-            moment: moment
+          if (execution.aideSoignant?.code) {
+            grouped[groupKey].aides.push(execution.aideSoignant.code)
+          }
+        })
+        
+        // Ajouter à la structure planningByWeek
+        Object.values(grouped).forEach(group => {
+          if (!planningByWeek.value[group.week]) {
+            planningByWeek.value[group.week] = {}
+          }
+          if (!planningByWeek.value[group.week][group.patientId]) {
+            planningByWeek.value[group.week][group.patientId] = {}
+          }
+          if (!planningByWeek.value[group.week][group.patientId][group.day]) {
+            planningByWeek.value[group.week][group.patientId][group.day] = {}
+          }
+          
+          // Créer l'objet activité (1 aide ou 2 aides)
+          if (group.aides.length === 2) {
+            // Assignation 2 aides
+            planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
+              type: 'shared',
+              ases: group.aides,
+              durees: [group.duree, group.duree],
+              moment: group.moment
+            }
+          } else if (group.aides.length === 1) {
+            // Assignation 1 aide
+            planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
+              as: group.aides[0],
+              duree: group.duree,
+              moment: group.moment
+            }
           }
         })
       })
@@ -560,6 +594,7 @@ const saveActivityToBackend = (data) => {
   
   // Créer le payload pour l'API
   const aideSoignantId = data.type === 'shared' ? getAideSoignantId(data.ases[0]) : getAideSoignantId(data.as)
+  const secondAideSoignantId = data.type === 'shared' ? getAideSoignantId(data.ases[1]) : null
   
   // Construire la date complète: calculer à partir de baseWeekStart et du jour sélectionné
   // baseWeekStart = May 11, 2026 (week 19, lundi)
@@ -574,6 +609,7 @@ const saveActivityToBackend = (data) => {
     patientId: modalPatient.value.id,
     typeSoinId: typeSoinId,
     aideSoignantId: aideSoignantId,
+    ...(secondAideSoignantId && { secondAideSoignantId: secondAideSoignantId }),
     dateExecution: dateObj.toLocaleDateString('en-CA'),
     heureExecution: getMomentAsHeure(data.moment || 'matin'),
     statut: 'PLANIFIE',
