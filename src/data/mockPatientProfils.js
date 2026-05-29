@@ -1,7 +1,7 @@
 // 5 Catégories avec 14 profils détaillés
 export const PATIENT_CATEGORIES = {
-  cat1: {
-    id: 'cat1',
+  CAT1: {
+    id: 'CAT1',
     label: 'Catégorie 1',
     color: '#9CA3AF',
     bgColor: 'rgba(156, 163, 175, 0.1)',
@@ -9,8 +9,8 @@ export const PATIENT_CATEGORIES = {
     icon: '🚶',
     description: 'Atteinte aux tâches domestiques seulement'
   },
-  cat2: {
-    id: 'cat2',
+  CAT2: {
+    id: 'CAT2',
     label: 'Catégorie 2',
     color: '#F59E0B',
     bgColor: 'rgba(245, 158, 11, 0.1)',
@@ -18,8 +18,8 @@ export const PATIENT_CATEGORIES = {
     icon: '🤝',
     description: 'Atteinte motrice prédominante'
   },
-  cat3: {
-    id: 'cat3',
+  CAT3: {
+    id: 'CAT3',
     label: 'Catégorie 3',
     color: '#3B82F6',
     bgColor: 'rgba(59, 130, 246, 0.1)',
@@ -27,8 +27,8 @@ export const PATIENT_CATEGORIES = {
     icon: '🧠',
     description: 'Atteinte mentale prédominante'
   },
-  cat4: {
-    id: 'cat4',
+  CAT4: {
+    id: 'CAT4',
     label: 'Catégorie 4',
     color: '#D4AF8F',
     bgColor: 'rgba(212, 175, 143, 0.1)',
@@ -36,8 +36,8 @@ export const PATIENT_CATEGORIES = {
     icon: '⚠️',
     description: 'Atteinte mixte, motrice et mentale'
   },
-  cat5: {
-    id: 'cat5',
+  CAT5: {
+    id: 'CAT5',
     label: 'Catégorie 5',
     color: '#92684F',
     bgColor: 'rgba(146, 104, 79, 0.1)',
