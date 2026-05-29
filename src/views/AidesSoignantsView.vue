@@ -102,10 +102,8 @@
 
     <!-- Modal Gestion des absences -->
     <GererAbsencesModal
-      v-if="aides.length > 0"
       :is-open="isAbsencesModalOpen"
-      :aide-soignant-id="aides[0].id"
-      :aide-soignant-nom="aides[0].prenom + ' ' + aides[0].nom"
+      :aides="aides"
       @close="isAbsencesModalOpen = false"
     />
   </div>
