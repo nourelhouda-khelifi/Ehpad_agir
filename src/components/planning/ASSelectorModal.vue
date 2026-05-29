@@ -251,16 +251,40 @@ const selectedMoment = ref(props.momentActuel || (props.activite === 'coucher' ?
 const assignmentType = ref('single')
 
 const jourLabel = computed(() => {
+  // Calculer la date dynamiquement basée sur la semaine
+  // semaine 19 = May 11 (lundi)
+  // semaine 20 = May 18 (lundi)
+  // semaine 21 = May 25 (lundi)
+  const baseDate = new Date(2026, 4, 11) // May 11, 2026 (semaine 19, lundi)
+  const weekOffset = props.semaine - 19
+  const jourIndex = {
+    lundi: 0,
+    mardi: 1,
+    mercredi: 2,
+    jeudi: 3,
+    vendredi: 4,
+    samedi: 5,
+    dimanche: 6
+  }[props.jour] ?? 0
+  
+  const date = new Date(baseDate)
+  date.setDate(baseDate.getDate() + (weekOffset * 7) + jourIndex)
+  
   const jours = {
-    lundi: 'Lundi 11 mai',
-    mardi: 'Mardi 12 mai',
-    mercredi: 'Mercredi 13 mai',
-    jeudi: 'Jeudi 14 mai',
-    vendredi: 'Vendredi 15 mai',
-    samedi: 'Samedi 16 mai',
-    dimanche: 'Dimanche 17 mai'
+    lundi: 'Lundi',
+    mardi: 'Mardi',
+    mercredi: 'Mercredi',
+    jeudi: 'Jeudi',
+    vendredi: 'Vendredi',
+    samedi: 'Samedi',
+    dimanche: 'Dimanche'
   }
-  return jours[props.jour] || props.jour
+  const dayName = jours[props.jour] || props.jour
+  const dayNumber = date.getDate()
+  const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+  const monthName = months[date.getMonth()]
+  
+  return `${dayName} ${dayNumber} ${monthName}`
 })
 
 const activiteLabel = computed(() => {

@@ -441,8 +441,15 @@ const ensurePatientPlanning = (patientId) => {
 
 const handleAssign = (data) => {
   if (!modalPatient.value || !modalJour.value) return
+  
+  // S'assurer que la semaine existe dans planningByWeek
+  if (!planningByWeek.value[currentWeek.value]) {
+    planningByWeek.value[currentWeek.value] = {}
+  }
+  
   ensurePatientPlanning(modalPatient.value.id)
   
+  // Mettre à jour le planning local
   if (data.type === 'shared') {
     // Tâche à 2 aides
     currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value] = {
@@ -460,7 +467,89 @@ const handleAssign = (data) => {
       moment: moment || 'matin'
     }
   }
+  
+  // Appeler l'API pour persister dans le backend
+  saveActivityToBackend(data)
   closeModal()
+}
+
+const saveActivityToBackend = (data) => {
+  // Mapper l'activité sélectionnée en typeSoinId
+  const activityMap = {
+    douche: 2,
+    toilette: 1,
+    wc: 1,
+    coucher: 1,
+    repas: 5,
+    lever: 1,
+    sieste: 1,
+    petitDejeuner: 1
+  }
+  
+  const typeSoinId = activityMap[selectedActivity.value] || 1
+  
+  // Trouver l'ID de l'aide-soignant à partir du code
+  const getAideSoignantId = (code) => {
+    const as = aidesSoignants.value.find(a => a.code === code)
+    return as ? as.id : null
+  }
+  
+  // Convertir moment en heure
+  const getMomentAsHeure = (moment) => {
+    const momentMap = {
+      'matin': '08:00',
+      'soir': '18:00',
+      '18-19': '18:00',
+      '19-20': '19:00'
+    }
+    return momentMap[moment] || '08:00'
+  }
+  
+  // Créer le payload pour l'API
+  const aideSoignantId = data.type === 'shared' ? getAideSoignantId(data.ases[0]) : getAideSoignantId(data.as)
+  
+  // Construire la date complète: calculer à partir de baseWeekStart et du jour sélectionné
+  // baseWeekStart = May 11, 2026 (week 19, lundi)
+  // currentWeek = 20 = week 20 starts May 18
+  // currentWeek = 21 = week 21 starts May 25
+  const dayIndex = joursSemaine.indexOf(modalJour.value)
+  const weekOffset = currentWeek.value - 19 // week 19 = 0, week 20 = 1, week 21 = 2, etc.
+  const dateObj = new Date(baseWeekStart)
+  
+  console.log('DEBUG: currentWeek.value=', currentWeek.value, 'weekOffset=', weekOffset, 'dayIndex=', dayIndex, 'baseWeekStart=', baseWeekStart)
+  
+  dateObj.setDate(baseWeekStart.getDate() + (weekOffset * 7) + dayIndex)
+  
+  console.log('DEBUG: computed dateObj=', dateObj.toISOString().split('T')[0])
+  
+  const payload = {
+    patientId: modalPatient.value.id,
+    typeSoinId: typeSoinId,
+    aideSoignantId: aideSoignantId,
+    dateExecution: dateObj.toISOString().split('T')[0],
+    heureExecution: getMomentAsHeure(data.moment || 'matin'),
+    statut: 'PLANIFIE',
+    commentaire: `Durée: ${data.duree || 'auto'} min${data.type === 'shared' ? ` - 2 aides: ${data.ases.join(', ')}` : ''}`
+  }
+  
+  // Appeler l'API
+  fetch('http://localhost:8081/api/executions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    return r.json()
+  })
+  .then(result => {
+    console.log('Activity saved to backend:', result)
+  })
+  .catch(e => {
+    console.error('Erreur save activity:', e)
+  })
 }
 
 const handleRemove = () => {
