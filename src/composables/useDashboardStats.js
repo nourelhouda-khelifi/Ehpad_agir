@@ -7,16 +7,29 @@ import { patientService } from '../api/services/patientService.js'
 import { patientAlertService } from '../api/services/patientAlertService.js'
 import { executionSoinService } from '../api/services/executionSoinService.js'
 import { aideSoignantService } from '../api/services/aideSoignantService.js'
-import { planningService } from '../api/services/planningService.js'
+import { typeSoinService } from '../api/services/typeSoinService.js'
 
 export const useDashboardStats = () => {
   const patients = ref([])
   const alertes = ref([])
   const executions = ref([])
   const aidesSoignants = ref([])
+  const typesSoin = ref([])
   const weeklyChargeData = ref({})
   const loading = ref(false)
   const error = ref(null)
+
+  // Date de base pour le calcul des semaines
+  const baseWeekStart = new Date(2026, 4, 11)
+
+  /**
+   * Calculer la semaine actuelle
+   */
+  const getCurrentWeek = () => {
+    const today = new Date()
+    const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
+    return 19 + Math.floor(dayDiff / 7)
+  }
 
   /**
    * Charger tous les patients
@@ -45,11 +58,11 @@ export const useDashboardStats = () => {
   }
 
   /**
-   * Charger les exécutions d'aujourd'hui
+   * Charger tous les ExecutionSoins
    */
-  const loadTodayExecutions = async () => {
+  const loadAllExecutions = async () => {
     try {
-      executions.value = await executionSoinService.getTodayExecutions()
+      executions.value = await executionSoinService.getAll()
     } catch (err) {
       console.error('Erreur lors du chargement des exécutions:', err)
       error.value = err.message
@@ -71,53 +84,51 @@ export const useDashboardStats = () => {
   }
 
   /**
+   * Charger les types de soins
+   */
+  const loadTypesSoin = async () => {
+    try {
+      typesSoin.value = await typeSoinService.getAll()
+    } catch (err) {
+      console.error('Erreur lors du chargement des types de soins:', err)
+      error.value = err.message
+      typesSoin.value = []
+    }
+  }
+
+  /**
    * Charger la charge hebdomadaire des aides-soignants
    */
-  const loadWeeklyCharge = async () => {
+  const loadWeeklyCharge = () => {
     const chargeData = {}
+    const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+    const currentWeek = getCurrentWeek()
 
-    try {
-      // Charger la charge pour chaque AS en parallèle
-      const chargePromises = aidesSoignants.value.map(async (as) => {
-        try {
-          const plannings = await planningService.getByAideSoignant(as.id)
-          
-          // Initialiser les jours
-          const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-          const chargeByDay = {}
-          days.forEach(day => {
-            chargeByDay[day] = 0
-          })
-
-          // Additionner par jour
-          plannings.forEach(planning => {
-            if (planning.datePlanification) {
-              const date = new Date(planning.datePlanification)
-              const dayIndex = date.getDay()
-              const frenchDayIndex = dayIndex === 0 ? 6 : dayIndex - 1
-              const day = days[frenchDayIndex]
-              
-              chargeByDay[day] += planning.dureeMinutes || 0
-            }
-          })
-
-          chargeData[as.code] = chargeByDay
-        } catch (err) {
-          console.error(`Erreur lors du chargement de la charge pour ${as.code}:`, err)
-          const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-          chargeData[as.code] = {}
-          days.forEach(day => {
-            chargeData[as.code][day] = 0
-          })
-        }
+    aidesSoignants.value.forEach(as => {
+      const chargeByDay = {}
+      days.forEach(day => {
+        chargeByDay[day] = 0
       })
 
-      await Promise.all(chargePromises)
-      weeklyChargeData.value = chargeData
-    } catch (err) {
-      console.error('Erreur lors du chargement de la charge hebdomadaire:', err)
-      weeklyChargeData.value = {}
-    }
+      // Filtrer les ExecutionSoins pour cet AS et cette semaine
+      executions.value.forEach(exec => {
+        if (exec.aideSoignant?.code !== as.code) return
+
+        const execDate = new Date(exec.dateExecution + 'T00:00:00')
+        const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+        const execWeek = 19 + Math.floor(dayDiff / 7)
+        
+        if (execWeek !== currentWeek) return
+
+        const dayOfWeek = dayDiff % 7
+        const day = days[dayOfWeek]
+        chargeByDay[day] = (chargeByDay[day] || 0) + 30
+      })
+
+      chargeData[as.code] = chargeByDay
+    })
+
+    weeklyChargeData.value = chargeData
   }
 
   /**
@@ -131,11 +142,12 @@ export const useDashboardStats = () => {
       await Promise.all([
         loadPatients(),
         loadAlertes(),
-        loadTodayExecutions(),
-        loadAidesSoignants()
+        loadAllExecutions(),
+        loadAidesSoignants(),
+        loadTypesSoin()
       ])
-      // Charger la charge hebdomadaire après avoir chargé les aides-soignants
-      await loadWeeklyCharge()
+      // Charger la charge hebdomadaire après avoir chargé les aides-soignants et exécutions
+      loadWeeklyCharge()
     } finally {
       loading.value = false
     }
@@ -147,10 +159,21 @@ export const useDashboardStats = () => {
   const stats = computed(() => {
     const totalPatients = patients.value.length
     const alertesActives = alertes.value.filter(a => !a.resolu).length
-    const soinsAujourdhui = executions.value.length
 
-    // Compter les patients sans douche (à adapter selon les données réelles)
-    const sansDouche = patients.value.filter(p => !p.dateLastDouche).length
+    // Récupérer les exécutions pour aujourd'hui
+    const today = new Date().toISOString().split('T')[0]
+    const todayExecutions = executions.value.filter(e => e.dateExecution === today)
+    const soinsAujourdhui = todayExecutions.length
+
+    // Compter les patients sans douche aujourd'hui
+    const patientIdsWithDouche = new Set()
+    todayExecutions.forEach(exec => {
+      const typeSoin = typesSoin.value.find(t => t.id === exec.typeSoinId)
+      if (typeSoin && typeSoin.nom.toUpperCase() === 'DOUCHE') {
+        patientIdsWithDouche.add(exec.patientId)
+      }
+    })
+    const sansDouche = patients.value.filter(p => !patientIdsWithDouche.has(p.id)).length
 
     // Compter les patients par étage
     const patientsByFloor = {}
@@ -185,27 +208,33 @@ export const useDashboardStats = () => {
     const repartition = {}
 
     executions.value.forEach(exec => {
-      const type = exec.typeSoin || 'Autre'
-      repartition[type] = (repartition[type] || 0) + 1
+      const typeSoin = typesSoin.value.find(t => t.id === exec.typeSoinId)
+      const label = typeSoin ? typeSoin.nom : 'Autre'
+      repartition[label] = (repartition[label] || 0) + 1
     })
 
     // Convertir en format de graphique
     return Object.entries(repartition).map(([label, count]) => ({
       label,
       count,
-      percentage: Math.round((count / executions.value.length) * 100) || 0
+      percentage: Math.round((count / (executions.value.length || 1)) * 100) || 0
     }))
   })
 
   /**
-   * Charge par aide-soignant (simplifié)
+   * Charge par aide-soignant pour aujourd'hui
    */
   const chargeAidesSoignants = computed(() => {
+    const today = new Date().toISOString().split('T')[0]
     const charges = {}
 
     aidesSoignants.value.forEach(as => {
-      const asExecutions = executions.value.filter(e => e.aideSoignantId === as.id)
-      const totalMinutes = asExecutions.reduce((sum, e) => sum + (e.dureeMinutes || 0), 0)
+      const asExecutions = executions.value.filter(e => {
+        if (e.aideSoignant?.code !== as.code) return false
+        if (e.dateExecution !== today) return false
+        return true
+      })
+      const totalMinutes = asExecutions.reduce((sum, e) => sum + 30, 0) // 30 min par défaut par exécution
       charges[as.code] = totalMinutes
     })
 
@@ -216,7 +245,8 @@ export const useDashboardStats = () => {
    * Charge hebdomadaire formatée pour le graphique BarChart
    */
   const chargeASParSemaine = computed(() => {
-    const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    const daysShort = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    const daysLong = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
     
     const colors = {
       SE1: '#97C459',
@@ -226,15 +256,15 @@ export const useDashboardStats = () => {
       SG: '#888780'
     }
 
-    // Créer les séries
-    const series = Object.entries(weeklyChargeData.value).map(([code, chargeByDay]) => ({
-      code,
-      color: colors[code] || '#888780',
-      values: days.map(day => chargeByDay[day] || 0)
+    // Créer les séries avec les jours longs du weeklyChargeData
+    const series = aidesSoignants.value.map(as => ({
+      code: as.code,
+      color: colors[as.code] || '#888780',
+      values: daysLong.map(day => weeklyChargeData.value[as.code]?.[day] || 0)
     }))
 
     return {
-      jours: days,
+      jours: daysShort,
       data: series.length > 0 ? series : [
         { code: 'SE1', color: colors.SE1, values: [0, 0, 0, 0, 0, 0, 0] },
         { code: 'SE2', color: colors.SE2, values: [0, 0, 0, 0, 0, 0, 0] },
@@ -250,6 +280,7 @@ export const useDashboardStats = () => {
     alertes,
     executions,
     aidesSoignants,
+    typesSoin,
     loading,
     error,
     stats,
@@ -259,8 +290,9 @@ export const useDashboardStats = () => {
     chargeASParSemaine,
     loadPatients,
     loadAlertes,
-    loadTodayExecutions,
+    loadAllExecutions,
     loadAidesSoignants,
+    loadTypesSoin,
     loadDashboardData
   }
 }

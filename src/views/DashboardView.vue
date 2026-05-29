@@ -120,7 +120,7 @@
     <div class="dashboard-grid-2">
       <SectionCard title="Charge des Aides-Soignants" icon="⚖️">
         <template #actions>
-          <span class="section-meta">Semaine 19</span>
+          <span class="section-meta">Semaine {{ currentWeek }}</span>
         </template>
         <ChargeASList :aides="aidesSoignants" :charge-par-periode="chargeAidesSoignants" />
       </SectionCard>
@@ -177,6 +177,18 @@ import { useDashboardStats } from '@/composables/useDashboardStats.js'
 
 const router = useRouter()
 const { patients, alertes, aidesSoignants, stats: dashboardStats, alertesCritiques, repartitionSoins, chargeAidesSoignants, chargeASParSemaine, loadDashboardData, loading } = useDashboardStats()
+
+// Date de base pour le calcul des semaines
+const baseWeekStart = new Date(2026, 4, 11)
+
+// Calculer la semaine actuelle
+const calculateCurrentWeek = () => {
+  const today = new Date()
+  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
+  return 19 + Math.floor(dayDiff / 7)
+}
+
+const currentWeek = ref(calculateCurrentWeek())
 
 // Charger les données au montage
 onMounted(() => {
