@@ -29,6 +29,22 @@
       </div>
     </div>
 
+    <!-- Détails des alertes -->
+    <div v-if="patientAlerts.length > 0" class="alerts-section">
+      <SectionCard title="Alertes" icon="⚠️">
+        <div v-for="alert in patientAlerts.filter(a => !a.resolue)" :key="alert.id" class="alert-detail">
+          <div class="alert-header">
+            <span class="alert-type">{{ alert.type }}</span>
+            <span :class="['alert-level', alert.niveau.toLowerCase()]">{{ alert.niveau }}</span>
+          </div>
+          <div class="alert-message">{{ alert.message }}</div>
+          <div class="alert-meta">
+            Créée le {{ new Date(alert.createdAt).toLocaleDateString('fr-FR') }}
+          </div>
+        </div>
+      </SectionCard>
+    </div>
+
     <!-- Infos principales -->
     <div class="info-grid">
       <SectionCard title="Infos Patient" icon="👤">
@@ -78,6 +94,7 @@ import InfoRow from '@/components/ui/InfoRow.vue'
 const route = useRoute()
 
 const patient = ref(null)
+const patientAlerts = ref([])
 
 // Fetch patient from API
 onMounted(async () => {
@@ -87,6 +104,12 @@ onMounted(async () => {
     if (response.ok) {
       patient.value = await response.json()
     }
+    
+    // Fetch patient alerts
+    const alertsResponse = await fetch(`http://localhost:8081/api/alertes/patient/${patientId}`)
+    if (alertsResponse.ok) {
+      patientAlerts.value = await alertsResponse.json()
+    }
   } catch (error) {
     console.error('Erreur fetch patient:', error)
   }
@@ -94,11 +117,19 @@ onMounted(async () => {
 
 // Génération automatique des messages d'alerte
 const alertesMessages = computed(() => {
-  if (!patient.value) return []
   const msgs = []
+  
+  // Ajouter les alertes actives de la base de données
+  if (patientAlerts.value && patientAlerts.value.length > 0) {
+    const activeAlerts = patientAlerts.value.filter(a => !a.resolue)
+    activeAlerts.forEach(alert => {
+      const emoji = alert.niveau === 'CRITIQUE' ? '🔴' : alert.niveau === 'MOYEN' ? '🟠' : '🟡'
+      msgs.push(`${emoji} ${alert.type}: ${alert.message}`)
+    })
+  }
 
   // Vérifier sans douche
-  if (patient.value.sansDouche) {
+  if (patient.value?.sansDouche) {
     msgs.push('⚠️ Pas de douche cette semaine')
   }
 
@@ -263,6 +294,62 @@ const generatePatientPDF = () => {
   color: #856404;
   font-size: 14px;
   margin: 4px 0;
+}
+
+.alerts-section {
+  margin: 16px 0;
+}
+
+.alert-detail {
+  background: #f8f9fa;
+  border-left: 4px solid #dc3545;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: var(--radius-sm);
+}
+
+.alert-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.alert-type {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.alert-level {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.alert-level.critique {
+  background: #dc3545;
+  color: white;
+}
+
+.alert-level.moyen {
+  background: #fd7e14;
+  color: white;
+}
+
+.alert-level.bas {
+  background: #28a745;
+  color: white;
+}
+
+.alert-message {
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.alert-meta {
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .not-found {
