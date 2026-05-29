@@ -153,7 +153,6 @@ import ChargeBar from '@/components/ui/ChargeBar.vue'
 import CalendarWeekSelector from '@/components/ui/CalendarWeekSelector.vue'
 import PlanningCell from '@/components/planning/PlanningCell.vue'
 import ASSelectorModal from '@/components/planning/ASSelectorModal.vue'
-import { mockPatients } from '@/data/mockPatients.js'
 import { clonePlanning, createEmptyPlanningForPatients, mockPlanningSemaine19, mockPlanningSemaine20 } from '@/data/mockPlanning.js'
 import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 import { useCharge } from '@/composables/useCharge.js'
@@ -209,7 +208,7 @@ const mergeStoredPlanningWithDefaults = (storedPlanning) => {
   return merged
 }
 
-const patients = ref(mockPatients)
+const patients = ref([])
 const aidesSoignants = ref([])
 const debugInfo = ref('initial state')
 const planningByWeek = ref(buildDefaultPlanningByWeek())
@@ -365,6 +364,7 @@ onMounted(() => {
   
   // Puis charger l'API dans une promesse séparée
   setTimeout(() => {
+    // Fetch aides-soignants
     fetch('http://localhost:8081/api/aides-soignants')
       .then(r => r.json())
       .then(data => {
@@ -394,6 +394,29 @@ onMounted(() => {
       })
       .catch(e => {
         console.error('Erreur fetch aides-soignants:', e)
+      })
+
+    // Fetch patients
+    fetch('http://localhost:8081/api/patients')
+      .then(r => r.json())
+      .then(data => {
+        patients.value = data
+        
+        // Ensure planning exists for all patients
+        Object.keys(planningByWeek.value).forEach(week => {
+          const weekPlanning = planningByWeek.value[week]
+          data.forEach(patient => {
+            if (!weekPlanning[patient.id]) {
+              weekPlanning[patient.id] = joursSemaine.reduce((acc, jour) => {
+                acc[jour] = {}
+                return acc
+              }, {})
+            }
+          })
+        })
+      })
+      .catch(e => {
+        console.error('Erreur fetch patients:', e)
       })
   }, 100)
 })
