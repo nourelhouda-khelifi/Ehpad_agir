@@ -66,9 +66,13 @@ const aideFiltered = computed(() => props.aides)
 
 const getChargeForPeriod = (as) => {
   if (periodFilter.value === 'toute') {
-    return as.chargeMinutes
+    return props.chargeParPeriode?.toute?.[as.code] || 0
+  } else if (periodFilter.value === 'matin') {
+    return props.chargeParPeriode?.matin?.[as.code] || 0
+  } else if (periodFilter.value === 'soir') {
+    return props.chargeParPeriode?.soir?.[as.code] || 0
   }
-  return props.chargeParPeriode[periodFilter.value]?.[as.code] || 0
+  return 0
 }
 </script>
 
