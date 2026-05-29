@@ -169,7 +169,7 @@ export const useDashboardStats = () => {
     const patientIdsWithDouche = new Set()
     todayExecutions.forEach(exec => {
       const typeSoin = typesSoin.value.find(t => t.id === exec.typeSoinId)
-      if (typeSoin && typeSoin.nom.toUpperCase() === 'DOUCHE') {
+      if (typeSoin && typeSoin.code === 'DOUCHE') {
         patientIdsWithDouche.add(exec.patientId)
       }
     })
@@ -209,7 +209,7 @@ export const useDashboardStats = () => {
 
     executions.value.forEach(exec => {
       const typeSoin = typesSoin.value.find(t => t.id === exec.typeSoinId)
-      const label = typeSoin ? typeSoin.nom : 'Autre'
+      const label = typeSoin ? typeSoin.libelle : 'Autre'
       repartition[label] = (repartition[label] || 0) + 1
     })
 
@@ -222,16 +222,23 @@ export const useDashboardStats = () => {
   })
 
   /**
-   * Charge par aide-soignant pour aujourd'hui
+   * Charge par aide-soignant pour la semaine actuelle
    */
   const chargeAidesSoignants = computed(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const currentWeek = getCurrentWeek()
     const charges = {}
+    const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
     aidesSoignants.value.forEach(as => {
       const asExecutions = executions.value.filter(e => {
         if (e.aideSoignant?.code !== as.code) return false
-        if (e.dateExecution !== today) return false
+        
+        // Calculer la semaine de l'exécution
+        const execDate = new Date(e.dateExecution + 'T00:00:00')
+        const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+        const execWeek = 19 + Math.floor(dayDiff / 7)
+        
+        if (execWeek !== currentWeek) return false
         return true
       })
       const totalMinutes = asExecutions.reduce((sum, e) => sum + 30, 0) // 30 min par défaut par exécution
