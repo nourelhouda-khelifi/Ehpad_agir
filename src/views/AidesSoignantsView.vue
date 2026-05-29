@@ -24,7 +24,7 @@
       />
 
       <!-- Card "Ajouter" -->
-      <div class="add-card">
+      <div class="add-card" @click="isModalOpen = true">
         <span class="add-icon">➕</span>
         <div class="add-label">Ajouter un AS</div>
       </div>
