@@ -418,6 +418,59 @@ onMounted(() => {
       .catch(e => {
         console.error('Erreur fetch patients:', e)
       })
+
+    // Charger les ExecutionSoins depuis l'API
+    fetch('http://localhost:8081/api/executions')
+      .then(r => r.json())
+      .then(data => {
+        // Pour chaque execution, déterminer la semaine et le jour
+        data.forEach(execution => {
+          const execDate = new Date(execution.dateExecution + 'T00:00:00')
+          
+          // Calculer la semaine
+          const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+          const week = 19 + Math.floor(dayDiff / 7)
+          const dayOfWeek = dayDiff % 7
+          
+          // Mapper typeSoinId vers activity key
+          const activityMap = {
+            1: 'toilette',
+            2: 'douche',
+            3: 'pansement',
+            4: 'injection',
+            5: 'repas'
+          }
+          const activity = activityMap[execution.typeSoinId] || 'toilette'
+          
+          // Mapper heure vers moment
+          const hour = parseInt(execution.heureExecution.split(':')[0])
+          let moment = 'matin'
+          if (hour >= 18) moment = hour === 18 ? '18-19' : hour === 19 ? '19-20' : 'soir'
+          else if (hour >= 14) moment = 'soir'
+          
+          // Ajouter à la structure planningByWeek
+          if (!planningByWeek.value[week]) {
+            planningByWeek.value[week] = {}
+          }
+          if (!planningByWeek.value[week][execution.patientId]) {
+            planningByWeek.value[week][execution.patientId] = {}
+          }
+          if (!planningByWeek.value[week][execution.patientId][joursSemaine[dayOfWeek]]) {
+            planningByWeek.value[week][execution.patientId][joursSemaine[dayOfWeek]] = {}
+          }
+          
+          // Créer l'objet activité
+          const asCode = execution.aideSoignant?.code || 'SANS_AS'
+          planningByWeek.value[week][execution.patientId][joursSemaine[dayOfWeek]][activity] = {
+            as: asCode,
+            duree: execution.commentaire?.match(/Durée: (\d+)/)?.[1] || 30,
+            moment: moment
+          }
+        })
+      })
+      .catch(e => {
+        console.error('Erreur fetch executions:', e)
+      })
   }, 100)
 })
 
