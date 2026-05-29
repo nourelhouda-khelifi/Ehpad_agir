@@ -5,7 +5,7 @@
       <div>
         <h1 class="page-title">Équipe Aides-Soignants</h1>
         <p class="page-subtitle">
-          {{ aides.length }} AS actifs · Semaine 19
+          {{ aides.length }} AS actifs · Semaine {{ currentWeek }}
         </p>
       </div>
       <div class="page-actions">
@@ -107,7 +107,6 @@ import { ref, computed, onMounted } from 'vue'
 
 import { useAidesSoignants } from '@/composables/useAidesSoignants.js'
 import { useAideSoignantCharge } from '@/composables/useAideSoignantCharge.js'
-import { planningService } from '@/api/services/planningService.js'
 import { mockChargeJour, mockChargeJourPeriode, mockPatientsParAS } from '@/data/mockChargeJour.js'
 
 import ASCard from '@/components/aides/ASCard.vue'
@@ -115,6 +114,9 @@ import ChargeHeatmap from '@/components/aides/ChargeHeatmap.vue'
 import ASDetailModal from '@/components/aides/ASDetailModal.vue'
 import AddAideSoignantModal from '@/components/forms/AddAideSoignantModal.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
+
+// Date de base pour le calcul des semaines
+const baseWeekStart = new Date(2026, 4, 11)
 
 // Composable pour charger les aides-soignants depuis l'API
 const { aidesSoignants, loadAidesSoignants } = useAidesSoignants()
@@ -131,12 +133,23 @@ const modalPatients = ref([])
 const isModalOpen = ref(false)
 const heatmapView = ref('jour') // 'jour', 'matin', 'soir'
 const loading = ref(false)
+const executions = ref([])
+
+// Calculer la semaine actuelle
+const calculateCurrentWeek = () => {
+  const today = new Date()
+  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
+  return 19 + Math.floor(dayDiff / 7)
+}
+
+const currentWeek = ref(calculateCurrentWeek())
+const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
 /**
- * Calculer la charge par jour pour un AS
+ * Calculer la charge par jour pour les ExecutionSoins d'une semaine
  */
-const calculateChargeParJour = (plannings) => {
-  const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+const calculateChargeParJourFromExecutions = (executions, asCode, week) => {
+  const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
   const chargeByDay = {}
 
   // Initialiser tous les jours
@@ -144,42 +157,46 @@ const calculateChargeParJour = (plannings) => {
     chargeByDay[day] = 0
   })
 
-  // Additionner les minutes pour chaque jour
-  plannings.forEach(planning => {
-    if (planning.datePlanification) {
-      const date = new Date(planning.datePlanification)
-      const dayIndex = date.getDay()
-      const frenchDayIndex = dayIndex === 0 ? 6 : dayIndex - 1
-      const day = days[frenchDayIndex]
-      
-      chargeByDay[day] += planning.dureeMinutes || 0
-    }
+  // Filtrer les executions pour cet AS et cette semaine
+  executions.forEach(execution => {
+    if (execution.aideSoignant?.code !== asCode) return
+
+    const execDate = new Date(execution.dateExecution + 'T00:00:00')
+    const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+    const execWeek = 19 + Math.floor(dayDiff / 7)
+    
+    if (execWeek !== week) return
+
+    const dayOfWeek = dayDiff % 7
+    const day = days[dayOfWeek]
+    
+    // Durée par défaut = 30 min (à adapter selon le type de soin)
+    chargeByDay[day] = (chargeByDay[day] || 0) + 30
   })
 
   return chargeByDay
 }
 
 /**
- * Charger la charge de tous les aides-soignants depuis l'API
+ * Charger la charge de tous les aides-soignants depuis les ExecutionSoins du backend
  */
 const loadAllAidesSoignantCharges = async () => {
   loading.value = true
   const allCharges = {}
 
   try {
-    // Charger la charge pour chaque AS en parallèle
-    const chargePromises = aidesSoignants.value.map(async (as) => {
-      try {
-        const planningsForAS = await planningService.getByAideSoignant(as.id)
-        allCharges[as.code] = calculateChargeParJour(planningsForAS)
-      } catch (err) {
-        console.error(`Erreur lors du chargement de la charge pour ${as.code}:`, err)
-        allCharges[as.code] = {}
-      }
+    // Récupérer tous les ExecutionSoins
+    const response = await fetch('http://localhost:8081/api/executions')
+    executions.value = await response.json()
+
+    // Calculer la charge pour chaque AS
+    aidesSoignants.value.forEach(as => {
+      allCharges[as.code] = calculateChargeParJourFromExecutions(executions.value, as.code, currentWeek.value)
     })
 
-    await Promise.all(chargePromises)
     chargeJour.value = allCharges
+  } catch (err) {
+    console.error('Erreur lors du chargement des charges:', err)
   } finally {
     loading.value = false
   }
@@ -221,12 +238,23 @@ const aides = computed(() => {
     else if (charge >= 90) niveau = 'eleve'
     else if (charge >= 60) niveau = 'normal'
     
+    // Compter les patients et soins uniques pour cette semaine
+    const execForThisAS = executions.value.filter(exec => {
+      if (exec.aideSoignant?.code !== as.code) return false
+      const execDate = new Date(exec.dateExecution + 'T00:00:00')
+      const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+      const execWeek = 19 + Math.floor(dayDiff / 7)
+      return execWeek === currentWeek.value
+    })
+    
+    const uniquePatients = new Set(execForThisAS.map(e => e.patientId))
+    
     return { 
       ...as, 
       niveau,
       chargeMinutes: charge,
-      nbPatients: 0, // À calculer depuis les plannings si nécessaire
-      nbSoins: 0     // À calculer depuis les plannings si nécessaire
+      nbPatients: uniquePatients.size,
+      nbSoins: execForThisAS.length
     }
   })
 })
