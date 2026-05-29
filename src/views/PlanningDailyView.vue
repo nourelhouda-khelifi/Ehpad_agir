@@ -220,7 +220,8 @@ const hasAnyActivity = (weekPlanning) => {
 
 const buildDefaultPlanningByWeek = () => ({
   19: clonePlanning(mockPlanningSemaine19),
-  20: clonePlanning(mockPlanningSemaine20)
+  20: clonePlanning(mockPlanningSemaine20),
+  21: {}
 })
 
 const mergeStoredPlanningWithDefaults = (storedPlanning) => {
@@ -237,17 +238,42 @@ const mergeStoredPlanningWithDefaults = (storedPlanning) => {
   return merged
 }
 
-const patients = ref(mockPatients)
-const aidesSoignants = ref(mockAidesSoignants)
+const patients = ref([])
+const aidesSoignants = ref([])
 
 // Gestion des semaines
 const baseWeekStart = new Date(2026, 4, 11)
 const planningByWeek = ref(buildDefaultPlanningByWeek())
-const currentWeek = ref(20)
+
+// Calculer la semaine actuelle basée sur la date d'aujourd'hui
+const calculateCurrentWeek = () => {
+  const today = new Date()
+  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
+  return 19 + Math.floor(dayDiff / 7)
+}
+
+const currentWeek = ref(calculateCurrentWeek())
 
 const ensurePlanningForWeek = (week) => {
   if (!planningByWeek.value[week]) {
-    planningByWeek.value[week] = createEmptyPlanningForPatients(patients.value)
+    // Si la semaine n'existe pas, créer une structure vide pour tous les patients du backend
+    planningByWeek.value[week] = {}
+    patients.value.forEach(patient => {
+      planningByWeek.value[week][patient.id] = joursSemaine.reduce((acc, jour) => {
+        acc[jour] = {}
+        return acc
+      }, {})
+    })
+  } else {
+    // Sinon, s'assurer que tous les patients du backend sont présents
+    patients.value.forEach(patient => {
+      if (!planningByWeek.value[week][patient.id]) {
+        planningByWeek.value[week][patient.id] = joursSemaine.reduce((acc, jour) => {
+          acc[jour] = {}
+          return acc
+        }, {})
+      }
+    })
   }
 }
 
@@ -277,12 +303,134 @@ const datesOfWeek = computed(() => {
 
 const filterAS = ref('all')
 
-// Charger et synchroniser les données du localStorage
+// Charger et synchroniser les données du localStorage et du backend
 onMounted(() => {
+  // Charger d'abord le localStorage
   const storedData = loadPlanningFromStorage()
   if (storedData) {
     planningByWeek.value = mergeStoredPlanningWithDefaults(storedData)
   }
+  
+  // Puis charger l'API directement (sans setTimeout)
+  // Fetch aides-soignants
+  fetch('http://localhost:8081/api/aides-soignants')
+    .then(r => r.json())
+    .then(data => {
+      aidesSoignants.value = data
+    })
+    .catch(e => {
+      console.error('Erreur fetch aides-soignants:', e)
+    })
+
+  // Fetch patients
+  fetch('http://localhost:8081/api/patients')
+    .then(r => r.json())
+    .then(data => {
+      patients.value = data
+      
+      // Ensure planning exists for all patients
+      Object.keys(planningByWeek.value).forEach(week => {
+        const weekPlanning = planningByWeek.value[week]
+        data.forEach(patient => {
+          if (!weekPlanning[patient.id]) {
+            weekPlanning[patient.id] = joursSemaine.reduce((acc, jour) => {
+              acc[jour] = {}
+              return acc
+            }, {})
+          }
+        })
+      })
+    })
+    .catch(e => {
+      console.error('Erreur fetch patients:', e)
+    })
+
+  // Charger les ExecutionSoins depuis l'API
+  fetch('http://localhost:8081/api/executions')
+      .then(r => r.json())
+      .then(data => {
+        // Grouper les executions par patient/date/activity/typeSoin pour détecter les 2-aides
+        const grouped = {}
+        
+        data.forEach(execution => {
+          const execDate = new Date(execution.dateExecution + 'T00:00:00')
+          
+          // Calculer la semaine
+          const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+          const week = 19 + Math.floor(dayDiff / 7)
+          const dayOfWeek = dayDiff % 7
+          
+          // Mapper typeSoinId vers activity key
+          const activityMap = {
+            1: 'toilette',
+            2: 'douche',
+            3: 'pansement',
+            4: 'injection',
+            5: 'repas'
+          }
+          const activity = activityMap[execution.typeSoinId] || 'toilette'
+          
+          // Mapper heure vers moment
+          const hour = parseInt(execution.heureExecution.split(':')[0])
+          let moment = 'matin'
+          if (hour >= 18) moment = hour === 18 ? '18-19' : hour === 19 ? '19-20' : 'soir'
+          else if (hour >= 14) moment = 'soir'
+          
+          // Clé de groupement
+          const groupKey = `${execution.patientId}_${week}_${dayOfWeek}_${activity}_${moment}`
+          
+          if (!grouped[groupKey]) {
+            grouped[groupKey] = {
+              week,
+              patientId: execution.patientId,
+              day: joursSemaine[dayOfWeek],
+              activity,
+              moment,
+              aides: [],
+              duree: execution.commentaire?.match(/Durée: (\d+)/)?.[1] || 30,
+              commentaire: execution.commentaire
+            }
+          }
+          
+          if (execution.aideSoignant?.code) {
+            grouped[groupKey].aides.push(execution.aideSoignant.code)
+          }
+        })
+        
+        // Ajouter à la structure planningByWeek
+        Object.values(grouped).forEach(group => {
+          if (!planningByWeek.value[group.week]) {
+            planningByWeek.value[group.week] = {}
+          }
+          if (!planningByWeek.value[group.week][group.patientId]) {
+            planningByWeek.value[group.week][group.patientId] = {}
+          }
+          if (!planningByWeek.value[group.week][group.patientId][group.day]) {
+            planningByWeek.value[group.week][group.patientId][group.day] = {}
+          }
+          
+          // Créer l'objet activité (1 aide ou 2 aides)
+          if (group.aides.length === 2) {
+            // Assignation 2 aides
+            planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
+              type: 'shared',
+              ases: group.aides,
+              durees: [group.duree, group.duree],
+              moment: group.moment
+            }
+          } else if (group.aides.length === 1) {
+            // Assignation 1 aide
+            planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
+              as: group.aides[0],
+              duree: group.duree,
+              moment: group.moment
+            }
+          }
+        })
+      })
+      .catch(e => {
+        console.error('Erreur fetch executions:', e)
+      })
 })
 
 // Mettre à jour le localStorage quand les données changent

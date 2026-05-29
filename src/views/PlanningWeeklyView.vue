@@ -191,7 +191,8 @@ const hasAnyActivity = (weekPlanning) => {
 
 const buildDefaultPlanningByWeek = () => ({
   19: clonePlanning(mockPlanningSemaine19),
-  20: clonePlanning(mockPlanningSemaine20)
+  20: clonePlanning(mockPlanningSemaine20),
+  21: {}
 })
 
 const mergeStoredPlanningWithDefaults = (storedPlanning) => {
@@ -213,7 +214,15 @@ const aidesSoignants = ref([])
 const debugInfo = ref('initial state')
 const planningByWeek = ref(buildDefaultPlanningByWeek())
 
-const currentWeek = ref(20)
+// Calculer la semaine actuelle basée sur la date d'aujourd'hui
+const baseWeekStart = new Date(2026, 4, 11)
+const calculateCurrentWeek = () => {
+  const today = new Date()
+  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
+  return 19 + Math.floor(dayDiff / 7)
+}
+
+const currentWeek = ref(calculateCurrentWeek())
 const filterEtage = ref('all')
 const filterAS = ref('all')
 const filterSansDouche = ref(false)
@@ -234,7 +243,6 @@ const activitiesConfig = ref({
   petitDejeuner: { icon: '🥐', label: 'Petit déjeuner', color: '#F59E0B' }
 })
 
-const baseWeekStart = new Date(2026, 4, 11)
 const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 const jours = computed(() => {
   return joursSemaine.map((key, index) => {
