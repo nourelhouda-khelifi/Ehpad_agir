@@ -7,13 +7,27 @@ import { apiClient } from '../client.js'
 import { API_CONFIG } from '../config.js'
 
 /**
+ * Mapper les données du patient depuis l'API
+ */
+const mapPatient = (patient) => ({
+  ...patient,
+  chambre: patient.numeroChambre || '',
+  asReferent: patient.aideSoignant || ''
+})
+
+/**
  * Service Patient
  */
 export const patientService = {
   /**
    * Récupérer tous les patients
    */
-  getAll: () => apiClient.get(API_CONFIG.ENDPOINTS.PATIENTS),
+  async getAll() {
+    const response = await apiClient.get(API_CONFIG.ENDPOINTS.PATIENTS)
+    // Gérer à la fois les réponses array et {value: [...]} 
+    const data = Array.isArray(response) ? response : (response.value || [])
+    return data.map(mapPatient)
+  },
 
   /**
    * Récupérer un patient par ID

@@ -19,7 +19,7 @@
       <div>
         <h1 class="page-title">Patients</h1>
         <p class="page-subtitle">
-          {{ patients.length }} patients · {{ alertesCount }} avec alertes critiques
+          {{ filteredPatients.length }} patients · {{ alertesCount }} avec alertes critiques
         </p>
       </div>
       <div class="page-actions">
