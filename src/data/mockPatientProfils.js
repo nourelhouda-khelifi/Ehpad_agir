@@ -1,7 +1,16 @@
-// 5 Catégories avec 14 profils détaillés
+// 4 Catégories avec 14 profils détaillés (aligné avec le backend)
 export const PATIENT_CATEGORIES = {
-  cat1: {
-    id: 'cat1',
+  NON_DEFINI: {
+    id: 'NON_DEFINI',
+    label: 'Non défini',
+    color: '#9CA3AF',
+    bgColor: 'rgba(156, 163, 175, 0.1)',
+    borderColor: '#6B7280',
+    icon: '🔹',
+    description: 'Catégorie non définie'
+  },
+  CAT1: {
+    id: 'CAT1',
     label: 'Catégorie 1',
     color: '#9CA3AF',
     bgColor: 'rgba(156, 163, 175, 0.1)',
@@ -9,8 +18,8 @@ export const PATIENT_CATEGORIES = {
     icon: '🚶',
     description: 'Atteinte aux tâches domestiques seulement'
   },
-  cat2: {
-    id: 'cat2',
+  CAT2: {
+    id: 'CAT2',
     label: 'Catégorie 2',
     color: '#F59E0B',
     bgColor: 'rgba(245, 158, 11, 0.1)',
@@ -18,8 +27,8 @@ export const PATIENT_CATEGORIES = {
     icon: '🤝',
     description: 'Atteinte motrice prédominante'
   },
-  cat3: {
-    id: 'cat3',
+  CAT3: {
+    id: 'CAT3',
     label: 'Catégorie 3',
     color: '#3B82F6',
     bgColor: 'rgba(59, 130, 246, 0.1)',
@@ -27,23 +36,14 @@ export const PATIENT_CATEGORIES = {
     icon: '🧠',
     description: 'Atteinte mentale prédominante'
   },
-  cat4: {
-    id: 'cat4',
+  CAT4: {
+    id: 'CAT4',
     label: 'Catégorie 4',
     color: '#D4AF8F',
     bgColor: 'rgba(212, 175, 143, 0.1)',
     borderColor: '#A0826D',
     icon: '⚠️',
     description: 'Atteinte mixte, motrice et mentale'
-  },
-  cat5: {
-    id: 'cat5',
-    label: 'Catégorie 5',
-    color: '#92684F',
-    bgColor: 'rgba(146, 104, 79, 0.1)',
-    borderColor: '#6B4423',
-    icon: '🚑',
-    description: 'Alité, dépendant aux AVQ'
   }
 }
 
@@ -53,7 +53,7 @@ export const PATIENT_PROFILS = {
     id: 'profil1',
     numero: 1,
     label: 'Lucide, ambulant',
-    category: 'cat1',
+    category: 'CAT1',
     description: 'Lucide, ambulant',
     priorite: 1
   },
@@ -61,7 +61,7 @@ export const PATIENT_PROFILS = {
     id: 'profil2',
     numero: 2,
     label: 'Lucide, ambulant',
-    category: 'cat1',
+    category: 'CAT1',
     description: 'Lucide, ambulant',
     priorite: 1
   },
@@ -69,7 +69,7 @@ export const PATIENT_PROFILS = {
     id: 'profil3',
     numero: 3,
     label: 'Lucide, ambulant',
-    category: 'cat1',
+    category: 'CAT1',
     description: 'Lucide, ambulant',
     priorite: 1
   },
@@ -77,7 +77,7 @@ export const PATIENT_PROFILS = {
     id: 'profil4',
     numero: 4,
     label: 'Lucide, ambulant',
-    category: 'cat2',
+    category: 'CAT2',
     description: 'Lucide, ambulant',
     priorite: 2
   },
@@ -85,7 +85,7 @@ export const PATIENT_PROFILS = {
     id: 'profil5',
     numero: 5,
     label: 'Pertes cogn. - ambulant',
-    category: 'cat3',
+    category: 'CAT3',
     description: 'Pertes cognitives, ambulant',
     priorite: 2
   },
@@ -93,7 +93,7 @@ export const PATIENT_PROFILS = {
     id: 'profil6',
     numero: 6,
     label: 'Lucide, ambulant',
-    category: 'cat2',
+    category: 'CAT2',
     description: 'Lucide, ambulant',
     priorite: 2
   },
@@ -101,7 +101,7 @@ export const PATIENT_PROFILS = {
     id: 'profil7',
     numero: 7,
     label: 'Pertes cogn. - ambulant',
-    category: 'cat3',
+    category: 'CAT3',
     description: 'Pertes cognitives, ambulant',
     priorite: 3
   },
@@ -109,7 +109,7 @@ export const PATIENT_PROFILS = {
     id: 'profil8',
     numero: 8,
     label: 'Pertes cogn. - ambulant',
-    category: 'cat3',
+    category: 'CAT3',
     description: 'Pertes cognitives, ambulant',
     priorite: 3
   },
@@ -117,7 +117,7 @@ export const PATIENT_PROFILS = {
     id: 'profil9',
     numero: 9,
     label: 'Lucide, non-ambulant',
-    category: 'cat2',
+    category: 'CAT2',
     description: 'Lucide, non-ambulant',
     priorite: 2
   },
@@ -125,7 +125,7 @@ export const PATIENT_PROFILS = {
     id: 'profil10',
     numero: 10,
     label: 'Pertes cogn. - ambulant',
-    category: 'cat3',
+    category: 'CAT3',
     description: 'Pertes cognitives, ambulant',
     priorite: 3
   },
@@ -133,7 +133,7 @@ export const PATIENT_PROFILS = {
     id: 'profil11',
     numero: 11,
     label: 'Pertes cogn. - non ambulant',
-    category: 'cat4',
+    category: 'CAT4',
     description: 'Pertes cognitives, non-ambulant',
     priorite: 4
   },
@@ -141,7 +141,7 @@ export const PATIENT_PROFILS = {
     id: 'profil12',
     numero: 12,
     label: 'Pertes cogn. - ambulant',
-    category: 'cat4',
+    category: 'CAT4',
     description: 'Pertes cognitives, ambulant',
     priorite: 4
   },
@@ -149,7 +149,7 @@ export const PATIENT_PROFILS = {
     id: 'profil13',
     numero: 13,
     label: 'Pertes cogn. - non ambulant',
-    category: 'cat5',
+    category: 'CAT4',
     description: 'Pertes cognitives, non-ambulant',
     priorite: 4
   },
@@ -157,7 +157,7 @@ export const PATIENT_PROFILS = {
     id: 'profil14',
     numero: 14,
     label: 'Pertes cogn. - non ambulant',
-    category: 'cat5',
+    category: 'CAT4',
     description: 'Pertes cognitives, non-ambulant',
     priorite: 4
   }
@@ -169,7 +169,7 @@ export function getProfilById(profilId) {
 }
 
 export function getCategoryById(categoryId) {
-  return PATIENT_CATEGORIES[categoryId] || PATIENT_CATEGORIES.cat1
+  return PATIENT_CATEGORIES[categoryId] || PATIENT_CATEGORIES.CAT1
 }
 
 export function getProfilCategory(profilId) {

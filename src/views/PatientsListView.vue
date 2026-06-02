@@ -169,6 +169,7 @@ import PatientFormModal from '@/components/forms/PatientFormModal.vue'
 import { mockPatients } from '@/data/mockPatients.js'
 import { PATIENT_PROFILS, PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 import { usePatients } from '@/composables/usePatients'
+import { patientService } from '@/api/services/patientService.js'
 
 const router = useRouter()
 
@@ -318,10 +319,37 @@ const handleSort = (key) => {
   }
 }
 
-const updatePatient = (patientId, field, value) => {
-  const patient = patients.value.find(p => p.id === patientId)
-  if (patient) {
-    patient[field] = value || null
+const updatePatient = async (patientId, field, value) => {
+  try {
+    const patient = patients.value.find(p => p.id === patientId)
+    if (!patient) {
+      console.warn(`Patient ${patientId} non trouvé`)
+      return
+    }
+
+    console.log(`📤 Envoi: PATCH patient ${patientId}: ${field} = ${value}`)
+
+    // Mettre à jour l'état local immédiatement pour une meilleure UX
+    patient[field] = value
+
+    // Appeler l'API pour sauvegarder en base de données
+    const updatedData = { [field]: value }
+    console.log(`📤 Payload envoyé:`, updatedData)
+    
+    const response = await patientService.update(patientId, updatedData)
+    console.log(`✅ Réponse reçue:`, response)
+    
+    // Mettre à jour le patient avec la réponse du serveur
+    if (response && response.id) {
+      Object.assign(patient, response)
+      console.log(`✅ Patient ${patientId} mise à jour avec succès: ${field} = ${response[field]}`)
+    }
+  } catch (err) {
+    console.error(`❌ Erreur lors de la mise à jour du patient ${patientId}:`, err)
+    console.error(`Message d'erreur:`, err.message)
+    console.error(`Stack:`, err.stack)
+    // Recharger les patients en cas d'erreur pour restaurer l'état initial
+    await loadPatients()
   }
 }
 

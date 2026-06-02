@@ -32,24 +32,30 @@ class ApiClient {
     }
 
     try {
+      console.log(`🔵 [API] ${method} ${url}`, options.data ? `Payload: ${config.body}` : '')
+      
       const response = await fetch(url, config)
+      console.log(`🔵 [API] Réponse: ${response.status} ${response.statusText}`)
 
       // Gérer les erreurs HTTP
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(
-          `API Error ${response.status}: ${errorData.message || response.statusText}`
-        )
+        const errorMsg = `API Error ${response.status}: ${errorData.message || response.statusText}`
+        console.error(`❌ [API] ${errorMsg}`, errorData)
+        throw new Error(errorMsg)
       }
 
       // Retourner la réponse (ou null pour 204 No Content)
       if (response.status === 204) {
+        console.log(`🟢 [API] 204 No Content`)
         return null
       }
 
-      return await response.json()
+      const responseData = await response.json()
+      console.log(`🟢 [API] Données reçues:`, responseData)
+      return responseData
     } catch (error) {
-      console.error(`Erreur lors de la requête ${method} ${url}:`, error)
+      console.error(`❌ [API] Erreur lors de la requête ${method} ${url}:`, error)
       throw error
     }
   }

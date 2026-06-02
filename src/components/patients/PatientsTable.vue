@@ -46,7 +46,6 @@
               @change="$emit('update-patient', patient.id, 'categorie', $event.target.value)"
               class="cell-select"
             >
-              <option value="">🔹 Non défini</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                 {{ cat.icon }} {{ cat.label }}
               </option>

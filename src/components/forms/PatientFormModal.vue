@@ -72,7 +72,6 @@
               <option value="CAT2">🤝 Catégorie 2</option>
               <option value="CAT3">🧠 Catégorie 3</option>
               <option value="CAT4">⚠️ Catégorie 4</option>
-              <option value="CAT5">🚑 Catégorie 5</option>
             </select>
           </div>
         </div>

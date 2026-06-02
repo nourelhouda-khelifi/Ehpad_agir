@@ -13,7 +13,7 @@ const props = defineProps({
   categoryId: { type: String, required: true }
 })
 
-const category = computed(() => PATIENT_CATEGORIES[props.categoryId] || PATIENT_CATEGORIES.cat1)
+const category = computed(() => PATIENT_CATEGORIES[props.categoryId] || PATIENT_CATEGORIES.CAT1)
 
 const categoryStyle = computed(() => ({
   background: category.value.bgColor,
