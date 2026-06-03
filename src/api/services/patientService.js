@@ -7,15 +7,32 @@ import { apiClient } from '../client.js'
 import { API_CONFIG } from '../config.js'
 
 /**
+ * Mapper les données du patient depuis l'API
+ */
+const mapPatient = (patient) => ({
+  ...patient,
+  chambre: patient.numeroChambre || '',
+  asReferent: patient.aideSoignant || ''
+})
+
+/**
  * Service Patient
  */
 export const patientService = {
   /**
    * Récupérer tous les patients
    */
-  getAll: () => {
-    console.log(`📋 [PatientService] Récupération de tous les patients`)
-    return apiClient.get(API_CONFIG.ENDPOINTS.PATIENTS)
+  //la javais un conflit j'ai commenté premier pour verifier 
+
+  //getAll: () => {
+    //console.log(`📋 [PatientService] Récupération de tous les patients`)
+    //return apiClient.get(API_CONFIG.ENDPOINTS.PATIENTS)
+
+  async getAll() {
+    const response = await apiClient.get(API_CONFIG.ENDPOINTS.PATIENTS)
+    // Gérer à la fois les réponses array et {value: [...]} 
+    const data = Array.isArray(response) ? response : (response.value || [])
+    return data.map(mapPatient)
   },
 
   /**

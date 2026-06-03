@@ -158,7 +158,7 @@ export const useDashboardStats = () => {
    */
   const stats = computed(() => {
     const totalPatients = patients.value.length
-    const alertesActives = alertes.value.filter(a => !a.resolu).length
+    const alertesActives = alertes.value.filter(a => !a.resolue).length
     const currentWeek = getCurrentWeek()
     const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
@@ -204,8 +204,17 @@ export const useDashboardStats = () => {
    */
   const alertesCritiques = computed(() => {
     return alertes.value
-      .filter(a => !a.resolu)
-      .sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation))
+      .map(a => {
+        // Enrichir avec le nom du patient
+        const patient = patients.value.find(p => p.id === a.patientId)
+        return {
+          ...a,
+          patientNom: patient ? `${patient.prenom} ${patient.nom}` : 'Patient inconnu',
+          chambre: patient?.numeroChambre
+        }
+      })
+      .filter(a => !a.resolue)
+      .sort((a, b) => new Date(b.createdAt || b.dateCreation) - new Date(a.createdAt || a.dateCreation))
       .slice(0, 5)
   })
 
@@ -230,14 +239,21 @@ export const useDashboardStats = () => {
   })
 
   /**
-   * Charge par aide-soignant pour la semaine actuelle
+   * Charge par aide-soignant et par période pour la semaine actuelle
    */
   const chargeAidesSoignants = computed(() => {
     const currentWeek = getCurrentWeek()
-    const charges = {}
-    const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+    const charges = {
+      toute: {},
+      matin: {},
+      soir: {}
+    }
 
     aidesSoignants.value.forEach(as => {
+      charges.toute[as.code] = 0
+      charges.matin[as.code] = 0
+      charges.soir[as.code] = 0
+
       const asExecutions = executions.value.filter(e => {
         if (e.aideSoignant?.code !== as.code) return false
         
@@ -249,8 +265,24 @@ export const useDashboardStats = () => {
         if (execWeek !== currentWeek) return false
         return true
       })
-      const totalMinutes = asExecutions.reduce((sum, e) => sum + 30, 0) // 30 min par défaut par exécution
-      charges[as.code] = totalMinutes
+
+      asExecutions.forEach(e => {
+        const typeSoin = typesSoin.value.find(t => t.id === e.typeSoinId)
+        const minutes = typeSoin?.dureeParDefaut || 30
+        
+        // Récupérer l'heure (format "HH:MM")
+        const heure = parseInt(e.heureExecution?.split(':')[0] || '0')
+        
+        // Classer par période
+        if (heure >= 6 && heure < 14) {
+          charges.matin[as.code] += minutes
+        } else if (heure >= 14 && heure < 22) {
+          charges.soir[as.code] += minutes
+        }
+        
+        // Total toute journée
+        charges.toute[as.code] += minutes
+      })
     })
 
     return charges

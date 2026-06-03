@@ -1,5 +1,5 @@
 <template>
-  <div class="alert-card" :class="`alert-${niveau}`">
+  <div class="alert-card" :class="`alert-${niveauLower}`">
     <div class="alert-content">
       <div class="alert-title">
         <span class="alert-icon">{{ icon }}</span>
@@ -25,11 +25,18 @@ const props = defineProps({
 
 defineEmits(['action'])
 
+const niveauLower = computed(() => props.niveau?.toLowerCase() || 'info')
+
 const icon = computed(() => {
   const icons = {
+    'CRITIQUE': '🔴',
+    'MOYEN': '🟠',
+    'BAS': '🔵',
+    'INFO': '🔵',
     critique: '🔴',
     moyen: '🟠',
-    info: '🔵'
+    info: '🔵',
+    bas: '🔵'
   }
   return icons[props.niveau] || '🔵'
 })
@@ -69,12 +76,37 @@ const icon = computed(() => {
   border-color: #EF4444;
 }
 
+.alert-CRITIQUE {
+  background: #FEE2E2;
+  border-color: #EF4444;
+}
+
 .alert-moyen {
   background: #FEF3C7;
   border-color: #D97706;
 }
 
+.alert-MOYEN {
+  background: #FEF3C7;
+  border-color: #D97706;
+}
+
 .alert-info {
+  background: #DBEAFE;
+  border-color: #0EA5E9;
+}
+
+.alert-INFO {
+  background: #DBEAFE;
+  border-color: #0EA5E9;
+}
+
+.alert-bas {
+  background: #DBEAFE;
+  border-color: #0EA5E9;
+}
+
+.alert-BAS {
   background: #DBEAFE;
   border-color: #0EA5E9;
 }

@@ -19,7 +19,7 @@
       <div>
         <h1 class="page-title">Patients</h1>
         <p class="page-subtitle">
-          {{ patients.length }} patients · {{ alertesCount }} avec alertes critiques
+          {{ filteredPatients.length }} patients · {{ alertesCount }} avec alertes critiques
         </p>
       </div>
       <div class="page-actions">
@@ -320,7 +320,9 @@ const handleSort = (key) => {
 }
 
 const updatePatient = async (patientId, field, value) => {
-  try {
+  //la aussi javais un conflit j'ai commenté pour verifier
+
+  /*try {
     const patient = patients.value.find(p => p.id === patientId)
     if (!patient) {
       console.warn(`Patient ${patientId} non trouvé`)
@@ -349,7 +351,47 @@ const updatePatient = async (patientId, field, value) => {
     console.error(`Message d'erreur:`, err.message)
     console.error(`Stack:`, err.stack)
     // Recharger les patients en cas d'erreur pour restaurer l'état initial
-    await loadPatients()
+    await loadPatients()*/
+
+  const patient = patients.value.find(p => p.id === patientId)
+  if (!patient) return
+  
+  // Sauvegarder la valeur précédente au cas où l'API échoue
+  const previousValue = patient[field]
+  
+  // Mettre à jour localement
+  patient[field] = value || null
+  
+  try {
+    // Nettoyer les données avant d'envoyer
+    // Convertir les strings vides en null pour les champs numériques
+    const cleanedPatient = { ...patient }
+    ;['tempsToiletteLit', 'tempsToiletteVasque', 'tempsToiletteMoyen', 'tempsWcMoyen', 'tempsCoucherMoyen'].forEach(field => {
+      if (cleanedPatient[field] === '' || cleanedPatient[field] === undefined) {
+        cleanedPatient[field] = null
+      }
+    })
+    
+    // Envoyer la modification au serveur
+    const response = await fetch(`http://localhost:8081/api/patients/${patientId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cleanedPatient)
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Erreur ${response.status}: ${response.statusText}`)
+    }
+    
+    console.log(`Patient ${patientId} mis à jour avec succès`)
+  } catch (err) {
+    console.error('Erreur lors de la mise à jour du patient:', err)
+    // Restaurer la valeur précédente en cas d'erreur
+    patient[field] = previousValue
+    alert(`Erreur: La modification n'a pas pu être sauvegardée: ${err.message}`)
+
   }
 }
 

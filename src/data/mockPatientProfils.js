@@ -1,5 +1,6 @@
 // 4 Catégories avec 14 profils détaillés (aligné avec le backend)
 export const PATIENT_CATEGORIES = {
+
   NON_DEFINI: {
     id: 'NON_DEFINI',
     label: 'Non défini',
@@ -9,6 +10,7 @@ export const PATIENT_CATEGORIES = {
     icon: '🔹',
     description: 'Catégorie non définie'
   },
+
   CAT1: {
     id: 'CAT1',
     label: 'Catégorie 1',
@@ -44,6 +46,7 @@ export const PATIENT_CATEGORIES = {
     borderColor: '#A0826D',
     icon: '⚠️',
     description: 'Atteinte mixte, motrice et mentale'
+
   }
 }
 
