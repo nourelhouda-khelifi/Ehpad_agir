@@ -59,13 +59,12 @@
             'is-recommended': recommandation?.code === as.code && !asActuel,
             'is-overload': as.niveau === 'surcharge'
           }"
-          @click="selectAS(as.code)"
+          @click="selectedAS = as.code"
         >
           <input
             :id="`as-${as.code}`"
-            v-model="selectedAS"
+            :checked="selectedAS === as.code"
             type="radio"
-            :value="as.code"
             class="as-radio"
           />
 
@@ -95,18 +94,17 @@
           class="as-item"
           :class="{
             'is-selected-2': selectedAS2 === as.code,
-            'is-disabled': selectedAS2 !== as.code && as.code === selectedAS,
+            'is-disabled': as.code === selectedAS,
             'is-overload': as.niveau === 'surcharge'
           }"
+          @click="as.code !== selectedAS && (selectedAS2 = as.code)"
         >
           <input
             :id="`as2-${as.code}`"
-            v-model="selectedAS2"
+            :checked="selectedAS2 === as.code"
             type="radio"
-            :value="as.code"
-            name="selectedAS2Group"
-            class="as-radio"
             :disabled="as.code === selectedAS"
+            class="as-radio"
           />
 
           <label :for="`as2-${as.code}`" class="as-label">
@@ -332,36 +330,6 @@ const handleConfirm = () => {
       moment: selectedMoment.value
     })
   }
-}
-
-const selectAS = (code) => {
-  // En mode "1 aide", toggle simple
-  // En mode "2 aides", sélection directe du 1er soignant (pas de toggle)
-  if (assignmentType.value === 'single') {
-    selectedAS.value = selectedAS.value === code ? null : code
-  } else {
-    // En mode shared, permettre toujours de changer le 1er soignant
-    selectedAS.value = code
-  }
-}
-
-const selectAS2 = (code) => {
-  console.log('selectAS2: before', { code, selectedAS2: selectedAS2.value, selectedAS: selectedAS.value })
-  if (selectedAS2.value === code) {
-    selectedAS2.value = null
-  } else if (code !== selectedAS.value) {
-    selectedAS2.value = code
-  }
-  // Force Vue to react
-  console.log('selectAS2: after', { selectedAS2: selectedAS2.value })
-  console.log('Button should be enabled now, validation check:')
-  console.log({
-    hasAS: !!selectedAS.value,
-    isShared: assignmentType.value === 'shared',
-    hasAS2: !!selectedAS2.value,
-    dur1: selectedDuree1.value,
-    dur2: selectedDuree2.value
-  })
 }
 
 const syncDurations = () => {
