@@ -59,11 +59,16 @@
             <label for="statut">Statut</label>
             <select id="statut" v-model="formData.statut">
               <option value="">Non défini</option>
-              <option value="ACTIVE">Actif</option>
-              <option value="INACTIVE">Inactif</option>
-              <option value="HOSPITALIZED">Hospitalisé</option>
+              <option value="HOSPITALISE">🏥 Hospitalisé</option>
+              <option value="AMBULATOIRE">🚶 Ambulatoire</option>
+              <option value="CONGE">🏡 En congé</option>
+              <option value="DECES">⚠️ Décès</option>
             </select>
           </div>
+        </div>
+
+        <!-- Row 3: Catégorie, Profil et Temps -->
+        <div class="form-row">
           <div class="form-group">
             <label for="categorie">Catégorie</label>
             <select id="categorie" v-model="formData.categorie">
@@ -74,18 +79,14 @@
               <option value="CAT4">⚠️ Catégorie 4</option>
             </select>
           </div>
-        </div>
-
-        <!-- Row 3: Profil et Temps -->
-        <div class="form-row">
           <div class="form-group">
             <label for="profil">Profil</label>
-            <input
-              id="profil"
-              v-model="formData.profil"
-              type="text"
-              placeholder="ex: P1"
-            />
+            <select id="profil" v-model="formData.profil">
+              <option value="">Non défini</option>
+              <option v-for="profil in profilListe" :key="profil.id" :value="profil.id">
+                Profil {{ profil.numero }} - {{ profil.label }}
+              </option>
+            </select>
           </div>
           <div class="form-group">
             <label for="tempsToiletteLit">Temps toilette lit (min)</label>
@@ -192,8 +193,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { usePatients } from '@/composables/usePatients'
+import { PATIENT_PROFILS } from '@/data/mockPatientProfils.js'
 
 const props = defineProps({
   isOpen: {
@@ -208,6 +210,11 @@ const { createPatient } = usePatients()
 
 const isSubmitting = ref(false)
 const errorMessage = ref('')
+
+// Computed : liste des profils triés
+const profilListe = computed(() =>
+  Object.values(PATIENT_PROFILS).sort((a, b) => a.numero - b.numero)
+)
 
 const formData = ref({
   numeroChambre: '',

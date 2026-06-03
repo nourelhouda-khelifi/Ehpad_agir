@@ -14,14 +14,14 @@
         :class="{ 'is-active': periodFilter === 'matin' }"
         @click="periodFilter = 'matin'"
       >
-        🌅 Matin (6h-14h)
+        🌅 Matin (7h-midi)
       </button>
       <button
         class="filter-btn"
         :class="{ 'is-active': periodFilter === 'soir' }"
         @click="periodFilter = 'soir'"
       >
-        🌙 Soir (14h-22h)
+        🌙 Soir (18h:30-20h:30)
       </button>
     </div>
 

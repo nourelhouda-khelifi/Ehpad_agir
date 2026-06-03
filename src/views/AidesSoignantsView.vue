@@ -9,7 +9,6 @@
         </p>
       </div>
       <div class="page-actions">
-        <button class="btn btn-secondary" @click="openAbsencesModal()">📅 Gérer absences</button>
         <button class="btn btn-primary" @click="isModalOpen = true">➕ Ajouter AS</button>
       </div>
     </div>
@@ -145,6 +144,7 @@ const selectedAideSoignantNom = ref('')
 const heatmapView = ref('jour') // 'jour', 'matin', 'soir'
 const loading = ref(false)
 const executions = ref([])
+const asAlerts = ref([])
 
 // Calculer la semaine actuelle
 const calculateCurrentWeek = () => {
@@ -155,6 +155,37 @@ const calculateCurrentWeek = () => {
 
 const currentWeek = ref(calculateCurrentWeek())
 const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+
+/**
+ * Formater une date pour l'affichage
+ */
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+/**
+ * Charger les alertes des aides-soignants depuis l'API
+ */
+const loadAideSoignantAlerts = async () => {
+  try {
+    const response = await fetch('http://localhost:8081/api/alertes')
+    const allAlerts = await response.json()
+    
+    // Filtrer les alertes AS_SURCHARGE et les enrichir avec le code de l'aide-soignant
+    const enrichedAlerts = allAlerts
+      .filter(alert => alert.type === 'AS_SURCHARGE')
+      .map(alert => ({
+        ...alert,
+        aideSoignantCode: aidesSoignants.value.find(as => as.id === alert.aideSoignantId)?.code || 'AS-' + alert.aideSoignantId
+      }))
+    
+    asAlerts.value = enrichedAlerts
+  } catch (err) {
+    console.error('Erreur lors du chargement des alertes AS:', err)
+  }
+}
 
 /**
  * Calculer la charge par jour pour les ExecutionSoins d'une semaine
@@ -217,6 +248,7 @@ const loadAllAidesSoignantCharges = async () => {
 onMounted(async () => {
   await loadAidesSoignants()
   await loadAllAidesSoignantCharges()
+  await loadAideSoignantAlerts()
 })
 
 // Données affichées selon le filtre
@@ -345,6 +377,7 @@ const onAideSoignantCreated = async (newAideSoignant) => {
   // L'AS a été ajouté au composable, recharger la liste et les charges
   await loadAidesSoignants()
   await loadAllAidesSoignantCharges()
+  await loadAideSoignantAlerts()
 }
 </script>
 
@@ -536,6 +569,131 @@ const onAideSoignantCreated = async (newAideSoignant) => {
 
 .btn-reco:hover {
   background: #D88B12;
+}
+
+/* Alertes des aides-soignants */
+.alerts-section {
+  background: white;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.alerts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.alerts-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.alerts-count {
+  background: #FFF3CD;
+  color: #9A6C00;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-item {
+  border-left: 4px solid;
+  border-radius: 4px;
+  padding: 12px;
+  background: #F9F9F9;
+  transition: all 0.15s ease;
+}
+
+.alert-item.alert-critique {
+  border-left-color: #DC3545;
+  background: #FFF5F5;
+}
+
+.alert-item.alert-moyen {
+  border-left-color: #FFA500;
+  background: #FFFBF5;
+}
+
+.alert-item.alert-bas {
+  border-left-color: #FFD700;
+  background: #FFFEF5;
+}
+
+.alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-header-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.alert-emoji {
+  font-size: 18px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.alert-title-item {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.alert-as {
+  background: #E8E8E8;
+  color: #333;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.alert-message {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.alert-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: #999;
+}
+
+.alert-date {
+  flex-grow: 1;
+}
+
+.alert-status {
+  background: #FFE8E8;
+  color: #DC3545;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.alert-status.resolved {
+  background: #D4EDDA;
+  color: #155724;
 }
 
 /* Responsive */

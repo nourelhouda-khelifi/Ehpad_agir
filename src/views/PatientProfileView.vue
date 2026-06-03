@@ -29,22 +29,6 @@
       </div>
     </div>
 
-    <!-- Détails des alertes -->
-    <div v-if="patientAlerts.length > 0" class="alerts-section">
-      <SectionCard title="Alertes" icon="⚠️">
-        <div v-for="alert in patientAlerts.filter(a => !a.resolue)" :key="alert.id" class="alert-detail">
-          <div class="alert-header">
-            <span class="alert-type">{{ alert.type }}</span>
-            <span :class="['alert-level', alert.niveau.toLowerCase()]">{{ alert.niveau }}</span>
-          </div>
-          <div class="alert-message">{{ alert.message }}</div>
-          <div class="alert-meta">
-            Créée le {{ new Date(alert.createdAt).toLocaleDateString('fr-FR') }}
-          </div>
-        </div>
-      </SectionCard>
-    </div>
-
     <!-- Infos principales -->
     <div class="info-grid">
       <SectionCard title="Infos Patient" icon="👤">
@@ -95,11 +79,56 @@ const route = useRoute()
 
 const patient = ref(null)
 const patientAlerts = ref([])
+const planningData = ref({})
+
+// Date de base pour les calculs
+const baseWeekStart = new Date(2026, 4, 11)
+
+// Calculer la semaine actuelle
+const calculateCurrentWeek = () => {
+  const today = new Date()
+  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
+  return 19 + Math.floor(dayDiff / 7)
+}
+
+// Charger le planning depuis localStorage
+const loadPlanningData = () => {
+  try {
+    const stored = localStorage.getItem('ehpad_planning_data')
+    if (stored) {
+      planningData.value = JSON.parse(stored)
+    }
+  } catch (error) {
+    console.error('Erreur chargement planning:', error)
+  }
+}
+
+// Vérifier si le patient a une activité cette semaine
+const hasActivityThisWeek = (patientId, activityKey) => {
+  const currentWeek = calculateCurrentWeek()
+  // Les clés du localStorage sont des strings, donc convertir en string
+  const weekPlanning = planningData.value[currentWeek.toString()]
+  if (!weekPlanning) return false
+  
+  const patientPlanning = weekPlanning[patientId.toString()]
+  if (!patientPlanning) return false
+  
+  // Vérifier tous les jours
+  return Object.values(patientPlanning).some(dayActivities => {
+    if (!dayActivities) return false
+    const activity = dayActivities[activityKey]
+    // Vérifier si l'activité existe (simple ou shared)
+    return !!(activity?.as || activity?.ases?.length > 0)
+  })
+}
 
 // Fetch patient from API
 onMounted(async () => {
+  // Charger d'abord le planning
+  loadPlanningData()
+  
   try {
-    const patientId = route.params.id
+    const patientId = parseInt(route.params.id)
     const response = await fetch(`http://localhost:8081/api/patients/${patientId}`)
     if (response.ok) {
       patient.value = await response.json()
@@ -115,23 +144,38 @@ onMounted(async () => {
   }
 })
 
-// Génération automatique des messages d'alerte
+  // Génération automatique des messages d'alerte
 const alertesMessages = computed(() => {
   const msgs = []
   
-  // Ajouter les alertes actives de la base de données
+  if (!patient.value) return msgs
+  const patientId = patient.value.id
+  
+  // Ajouter les alertes actives de la base de données (exclure AS_SURCHARGE qui concerne les aides-soignants)
   if (patientAlerts.value && patientAlerts.value.length > 0) {
-    const activeAlerts = patientAlerts.value.filter(a => !a.resolue)
+    const activeAlerts = patientAlerts.value.filter(a => !a.resolue && a.type !== 'AS_SURCHARGE')
     activeAlerts.forEach(alert => {
       const emoji = alert.niveau === 'CRITIQUE' ? '🔴' : alert.niveau === 'MOYEN' ? '🟠' : '🟡'
       msgs.push(`${emoji} ${alert.type}: ${alert.message}`)
     })
   }
 
-  // Vérifier sans douche
-  if (patient.value?.sansDouche) {
-    msgs.push('⚠️ Pas de douche cette semaine')
-  }
+  // Vérifier toutes les activités manquantes en regardant le planning réel
+  // Définir les activités à vérifier avec leurs emoji et libellés
+  const activitiesToCheck = [
+    { key: 'douche', emoji: '🛁', label: 'Douche' },
+    { key: 'toilette', emoji: '🧼', label: 'Toilette' },
+    { key: 'wc', emoji: '🚽', label: 'WC' },
+    { key: 'coucher', emoji: '🛏️', label: 'Coucher' }
+  ]
+  
+  // Vérifier chaque activité et créer une alerte si manquante
+  activitiesToCheck.forEach(activity => {
+    const hasActivity = hasActivityThisWeek(patientId, activity.key)
+    if (!hasActivity) {
+      msgs.push(`${activity.emoji} ${activity.key.toUpperCase()}_MANQUANTE: Aucune ${activity.label.toLowerCase()} planifiée cette semaine`)
+    }
+  })
 
   return msgs
 })

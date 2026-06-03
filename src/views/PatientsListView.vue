@@ -22,10 +22,7 @@
           {{ filteredPatients.length }} patients · {{ alertesCount }} avec alertes critiques
         </p>
       </div>
-      <div class="page-actions">
-        <button class="btn btn-secondary" @click="generatePatientsPDF()">
-          📥 Export
-        </button>
+      <div class="header-actions-right">
         <button class="btn btn-primary" @click="showFormModal = true">
           ➕ Nouveau patient
         </button>
@@ -68,58 +65,6 @@
       </select>
     </div>
 
-    <!-- Filtres rapides -->
-    <div class="quick-filters">
-      <FilterPill
-        :active="filterQuick === 'all'"
-        :count="patients.length"
-        @click="filterQuick = 'all'"
-      >
-        Tous
-      </FilterPill>
-      <FilterPill
-        :active="filterQuick === 'etage1'"
-        :count="countByEtage(1)"
-        @click="filterQuick = 'etage1'"
-      >
-        1er étage
-      </FilterPill>
-      <FilterPill
-        :active="filterQuick === 'etage2'"
-        :count="countByEtage(2)"
-        @click="filterQuick = 'etage2'"
-      >
-        2ème étage
-      </FilterPill>
-      <FilterPill        :active="filterQuick === 'etage3'"
-        :count="countByEtage(3)"
-        @click="filterQuick = 'etage3'"
-      >
-        3ème étage
-      </FilterPill>
-      <FilterPill        :active="filterQuick === 'alertes'"
-        :count="alertesCount"
-        variant="danger"
-        @click="filterQuick = 'alertes'"
-      >
-        ⚠️ Avec alertes
-      </FilterPill>
-      <FilterPill
-        :active="filterQuick === 'sansDouche'"
-        :count="sansDoucheCount"
-        variant="danger"
-        @click="filterQuick = 'sansDouche'"
-      >
-        Sans douche
-      </FilterPill>
-    </div>
-
-    <!-- Filtre par catégorie -->
-    <CategoryFilter v-model="filterCategory" />
-
-    <!-- Filtre par priorité -->
-    <PriorityFilter v-model="filterPriority" />
-
     <!-- Tableau -->
     <PatientsTable
       :patients="paginatedPatients"
@@ -160,8 +105,6 @@ import autoTable from 'jspdf-autotable'
 
 import SearchInput from '@/components/ui/SearchInput.vue'
 import FilterPill from '@/components/ui/FilterPill.vue'
-import CategoryFilter from '@/components/ui/CategoryFilter.vue'
-import PriorityFilter from '@/components/ui/PriorityFilter.vue'
 import PatientsTable from '@/components/patients/PatientsTable.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 import PatientFormModal from '@/components/forms/PatientFormModal.vue'
@@ -190,8 +133,6 @@ const filterEtage = ref('')
 const filterAS = ref('')
 const filterCategorie = ref('')
 const filterProfil = ref('')
-const filterCategory = ref(null)
-const filterPriority = ref(null)
 const filterQuick = ref('all')
 
 // Tri
@@ -234,19 +175,6 @@ const filteredPatients = computed(() => {
   // Filtre profil (select)
   if (filterProfil.value) {
     result = result.filter(p => p.profil === filterProfil.value)
-  }
-
-  // Filtre catégorie (buttons)
-  if (filterCategory.value) {
-    result = result.filter(p => p.categorie === filterCategory.value)
-  }
-
-  // Filtre priorité
-  if (filterPriority.value) {
-    result = result.filter(p => {
-      const profil = PATIENT_PROFILS[p.profil]
-      return profil && profil.priorite === filterPriority.value
-    })
   }
 
   // Filtres rapides
@@ -305,7 +233,7 @@ const profilListe = computed(() =>
 )
 
 // Reset page quand on filtre
-watch([searchQuery, filterEtage, filterAS, filterCategorie, filterProfil, filterCategory, filterPriority, filterQuick], () => {
+watch([searchQuery, filterEtage, filterAS, filterCategorie, filterProfil, filterQuick], () => {
   currentPage.value = 1
 })
 

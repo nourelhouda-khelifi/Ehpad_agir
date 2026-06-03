@@ -138,26 +138,6 @@
       />
     </SectionCard>
 
-    <!-- Alertes -->
-    <SectionCard title="Alertes critiques" icon="🚨">
-      <template #actions>
-        <button class="btn-link" @click="$router.push('/patients')">
-          Voir tout →
-        </button>
-      </template>
-      <div class="alertes-list">
-        <AlertCard
-          v-for="alerte in alertesCritiques"
-          :key="alerte.id"
-          :niveau="alerte.niveau"
-          :title="alerte.patientNom + (alerte.chambre ? ` — ${alerte.chambre}` : '')"
-          :message="alerte.message"
-          action-label="Traiter"
-          @action="handleAlerte(alerte)"
-        />
-      </div>
-    </SectionCard>
-
   </div>
 </template>
 

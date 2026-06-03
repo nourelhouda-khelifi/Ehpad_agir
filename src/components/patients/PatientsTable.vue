@@ -14,9 +14,6 @@
           <th>Catégorie</th>
           <th>Profil</th>
           <th>Priorité</th>
-          <th>Temps moyen WC</th>
-          <th>Temps moyen coucher</th>
-          <th>Alertes</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -76,38 +73,8 @@
               <option value="CRITIQUE">4 - Critique</option>
             </select>
           </td>
-          <td class="temps-cell">
-            <span v-if="patient.tempsWCMoyen > 0">{{ patient.tempsWCMoyen }} min</span>
-            <span v-else class="no-data">-</span>
-          </td>
-          <td class="temps-cell">
-            <span v-if="patient.tempsCoucherMoyen > 0">{{ patient.tempsCoucherMoyen }} min</span>
-            <span v-else class="no-data">-</span>
-          </td>
-          <td class="alerts-cell">
-            <span v-if="patient.alertes > 0" class="alert-badge">
-              ⚠️ {{ patient.alertes }}
-            </span>
-            <span v-else class="no-alert">-</span>
-          </td>
           <td>
             <div class="action-buttons">
-              <button 
-                v-if="getPatientIndex(patient.id) > 0"
-                class="order-btn" 
-                title="Monter"
-                @click="$emit('move-patient', patient.id, -1)"
-              >
-                ▲
-              </button>
-              <button 
-                v-if="getPatientIndex(patient.id) < patients.length - 1"
-                class="order-btn" 
-                title="Descendre"
-                @click="$emit('move-patient', patient.id, 1)"
-              >
-                ▼
-              </button>
               <button class="action-btn" @click="$emit('open-patient', patient.id)">
                 Voir détails
               </button>

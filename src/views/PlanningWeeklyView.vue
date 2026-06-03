@@ -116,10 +116,10 @@
           <PlanningCell
             v-for="jour in jours"
             :key="jour.key"
-            :as-code="currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.as"
-            :duree="currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.duree"
-            :moment="currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.moment"
-            :activity-data="currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]"
+            :as-code="getCellActivityData(currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity])?.as || null"
+            :duree="getCellActivityData(currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity])?.duree"
+            :moment="getCellActivityData(currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity])?.moment"
+            :activity-data="getCellActivityData(currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity])"
             :is-warning="isPatientSansDouche(patient.id) && !currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.as && currentPlanning?.[patient.id]?.[jour.key]?.[selectedActivity]?.type !== 'shared'"
             @click="openModal(patient, jour.key)"
           />
@@ -377,7 +377,12 @@ const rowHasAS = (patientId, asCode) => {
   const planningPatient = currentPlanning.value?.[patientId]
   if (!planningPatient) return false
   return Object.values(planningPatient).some(dayActivities => {
-    return dayActivities[selectedActivity.value]?.as === asCode
+    const activity = dayActivities[selectedActivity.value]
+    // Chercher dans les assignments simples (as)
+    if (activity?.as === asCode) return true
+    // Chercher dans les assignments partagés (ases)
+    if (activity?.ases?.includes(asCode)) return true
+    return false
   })
 }
 
@@ -406,6 +411,24 @@ const getCategoryColor = (categoryId) => {
   return PATIENT_CATEGORIES[categoryId]?.color || '#9CA3AF'
 }
 
+const getCellActivityData = (activityData) => {
+  // Si aucun filtre AS n'est appliqué, retourner les données complètes
+  if (filterAS.value === 'all') {
+    return activityData
+  }
+  
+  // Si un filtre AS est appliqué, vérifier si cet AS est dans l'activité
+  if (!activityData) return null
+  
+  const hasFilteredAS = 
+    (activityData.as === filterAS.value) || 
+    (activityData.ases?.includes(filterAS.value))
+  
+  // Si l'AS filtré est dans l'activité, afficher les données
+  // Sinon retourner null pour masquer la cellule
+  return hasFilteredAS ? activityData : null
+}
+
 const patientsFiltres = computed(() => {
   return patients.value.filter((patient) => {
     if (filterEtage.value !== 'all' && patient.etage !== Number(filterEtage.value)) {
@@ -416,7 +439,8 @@ const patientsFiltres = computed(() => {
       return false
     }
 
-    if (filterAS.value !== 'all' && !rowHasAS(patient.id, filterAS.value) && patient.asReferent !== filterAS.value) {
+    // Filtre par AS : afficher uniquement si l'AS a réellement des soins assignés
+    if (filterAS.value !== 'all' && !rowHasAS(patient.id, filterAS.value)) {
       return false
     }
 
@@ -555,7 +579,7 @@ onMounted(() => {
               activity,
               moment,
               aides: [],
-              duree: execution.commentaire?.match(/Durée: (\d+)/)?.[1] || 30,
+              duree: parseInt(execution.commentaire?.match(/Durée: (\d+)/)?.[1] || '30'),
               commentaire: execution.commentaire
             }
           }
@@ -578,19 +602,20 @@ onMounted(() => {
           }
           
           // Créer l'objet activité (1 aide ou 2 aides)
+          const numDuree = typeof group.duree === 'string' ? parseInt(group.duree) : group.duree
           if (group.aides.length === 2) {
             // Assignation 2 aides
             planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
               type: 'shared',
               ases: group.aides,
-              durees: [group.duree, group.duree],
+              durees: [numDuree, numDuree],
               moment: group.moment
             }
           } else if (group.aides.length === 1) {
             // Assignation 1 aide
             planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
               as: group.aides[0],
-              duree: group.duree,
+              duree: numDuree,
               moment: group.moment
             }
           }
@@ -620,6 +645,15 @@ const ensurePatientPlanning = (patientId) => {
   }
 }
 
+const ensureDayPlanning = (patientId, jour) => {
+  if (!currentPlanning.value[patientId]) {
+    currentPlanning.value[patientId] = {}
+  }
+  if (!currentPlanning.value[patientId][jour]) {
+    currentPlanning.value[patientId][jour] = {}
+  }
+}
+
 const handleAssign = (data) => {
   if (!modalPatient.value || !modalJour.value) return
   
@@ -628,29 +662,42 @@ const handleAssign = (data) => {
     planningByWeek.value[currentWeek.value] = {}
   }
   
-  ensurePatientPlanning(modalPatient.value.id)
+  // S'assurer que le patient existe dans la semaine
+  if (!planningByWeek.value[currentWeek.value][modalPatient.value.id]) {
+    planningByWeek.value[currentWeek.value][modalPatient.value.id] = {}
+  }
+  
+  // S'assurer que le jour existe pour le patient
+  if (!planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value]) {
+    planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value] = {}
+  }
   
   // Mettre à jour le planning local
   if (data.type === 'shared') {
     // Tâche à 2 aides
-    currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value] = {
+    planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
       type: 'shared',
       ases: data.ases,
-      durees: data.durees,
+      durees: data.durees.map(d => typeof d === 'string' ? parseInt(d) : d),
       moment: data.moment || 'matin'
     }
   } else {
     // Tâche simple (1 aide)
     const { as: codeAS, duree, moment } = typeof data === 'string' ? { as: data, duree: 30, moment: 'matin' } : data
-    currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value] = {
+    const numDuree = typeof duree === 'string' ? parseInt(duree) : (duree || 30)
+    planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
       as: codeAS,
-      duree,
+      duree: numDuree,
       moment: moment || 'matin'
     }
   }
   
   // Appeler l'API pour persister dans le backend
   saveActivityToBackend(data)
+  
+  // Sauvegarder également au localStorage pour la persistance locale
+  savePlanningToStorage(planningByWeek.value)
+  
   closeModal()
 }
 
@@ -686,54 +733,98 @@ const saveActivityToBackend = (data) => {
     return momentMap[moment] || '08:00'
   }
   
-  // Créer le payload pour l'API
-  const aideSoignantId = data.type === 'shared' ? getAideSoignantId(data.ases[0]) : getAideSoignantId(data.as)
-  const secondAideSoignantId = data.type === 'shared' ? getAideSoignantId(data.ases[1]) : null
-  
   // Construire la date complète: calculer à partir de baseWeekStart et du jour sélectionné
-  // baseWeekStart = May 11, 2026 (week 19, lundi)
-  // currentWeek = 20 = week 20 starts May 18
-  // currentWeek = 21 = week 21 starts May 25
   const dayIndex = joursSemaine.indexOf(modalJour.value)
-  const weekOffset = currentWeek.value - 19 // week 19 = 0, week 20 = 1, week 21 = 2, etc.
+  const weekOffset = currentWeek.value - 19
   const dateObj = new Date(baseWeekStart)
   dateObj.setDate(baseWeekStart.getDate() + (weekOffset * 7) + dayIndex)
   
-  const payload = {
-    patientId: modalPatient.value.id,
-    typeSoinId: typeSoinId,
-    aideSoignantId: aideSoignantId,
-    ...(secondAideSoignantId && { secondAideSoignantId: secondAideSoignantId }),
-    dateExecution: dateObj.toLocaleDateString('en-CA'),
-    heureExecution: getMomentAsHeure(data.moment || 'matin'),
-    statut: 'PLANIFIE',
-    commentaire: `Durée: ${data.duree || 'auto'} min${data.type === 'shared' ? ` - 2 aides: ${data.ases.join(', ')}` : ''}`
+  // En mode shared: créer 2 executions (une par aide)
+  if (data.type === 'shared') {
+    const payloads = [
+      {
+        patientId: modalPatient.value.id,
+        typeSoinId: typeSoinId,
+        aideSoignantId: getAideSoignantId(data.ases[0]),
+        secondAideSoignantId: getAideSoignantId(data.ases[1]),
+        dateExecution: dateObj.toLocaleDateString('en-CA'),
+        heureExecution: getMomentAsHeure(data.moment || 'matin'),
+        statut: 'PLANIFIE',
+        commentaire: `Durée: ${data.durees[0]} min - 2 aides: ${data.ases[0]}, ${data.ases[1]}`
+      },
+      {
+        patientId: modalPatient.value.id,
+        typeSoinId: typeSoinId,
+        aideSoignantId: getAideSoignantId(data.ases[1]),
+        secondAideSoignantId: getAideSoignantId(data.ases[0]),
+        dateExecution: dateObj.toLocaleDateString('en-CA'),
+        heureExecution: getMomentAsHeure(data.moment || 'matin'),
+        statut: 'PLANIFIE',
+        commentaire: `Durée: ${data.durees[1]} min - 2 aides: ${data.ases[0]}, ${data.ases[1]}`
+      }
+    ]
+    
+    // Envoyer les deux executions
+    payloads.forEach(payload => {
+      fetch('http://localhost:8081/api/executions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then(result => {
+        console.log('Shared activity saved to backend:', result)
+      })
+      .catch(e => {
+        console.error('Erreur save shared activity:', e)
+      })
+    })
+  } else {
+    // Mode simple (1 aide)
+    const payload = {
+      patientId: modalPatient.value.id,
+      typeSoinId: typeSoinId,
+      aideSoignantId: getAideSoignantId(data.as),
+      dateExecution: dateObj.toLocaleDateString('en-CA'),
+      heureExecution: getMomentAsHeure(data.moment || 'matin'),
+      statut: 'PLANIFIE',
+      commentaire: `Durée: ${data.duree} min`
+    }
+    
+    // Appeler l'API pour 1 aide
+    fetch('http://localhost:8081/api/executions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      return r.json()
+    })
+    .then(result => {
+      console.log('Activity saved to backend:', result)
+    })
+    .catch(e => {
+      console.error('Erreur save activity:', e)
+    })
   }
-  
-  // Appeler l'API
-  fetch('http://localhost:8081/api/executions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  })
-  .then(r => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    return r.json()
-  })
-  .then(result => {
-    console.log('Activity saved to backend:', result)
-  })
-  .catch(e => {
-    console.error('Erreur save activity:', e)
-  })
 }
 
 const handleRemove = () => {
   if (!modalPatient.value || !modalJour.value) return
-  ensurePatientPlanning(modalPatient.value.id)
-  delete currentPlanning.value[modalPatient.value.id][modalJour.value][selectedActivity.value]
+  
+  // Vérifier que la structure existe avant de supprimer
+  if (planningByWeek.value[currentWeek.value]?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]) {
+    delete planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value]
+  }
+  
   closeModal()
 }
 </script>

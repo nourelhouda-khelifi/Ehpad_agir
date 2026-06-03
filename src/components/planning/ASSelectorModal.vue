@@ -318,7 +318,7 @@ const handleConfirm = () => {
   if (!selectedAS.value) return
   
   if (assignmentType.value === 'single') {
-    const duree = selectedDuree.value ? parseInt(selectedDuree.value) : null
+    const duree = selectedDuree.value && selectedDuree.value !== '' ? parseInt(selectedDuree.value) : props.dureeActuelle || 30
     emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value })
   } else {
     // Assignation à 2 aides
