@@ -70,8 +70,8 @@ export function useCharge(planning, aidesSoignants) {
   })
 
   const recommanderAS = computed(() => {
-    const actifs = aidesSoignantsAvecCharge.value.filter((as) => as.actif)
-    return [...actifs].sort((a, b) => a.chargeMinutes - b.chargeMinutes)[0] || null
+    // Recommander l'AS avec la charge la plus faible (depuis que le champ actif n'existe plus)
+    return [...aidesSoignantsAvecCharge.value].sort((a, b) => a.chargeMinutes - b.chargeMinutes)[0] || null
   })
 
   const chargeMoyenne = computed(() => {
