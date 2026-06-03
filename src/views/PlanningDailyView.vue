@@ -51,39 +51,13 @@
           Tous
         </button>
         <button
-          class="filter-btn se1"
-          :class="{ 'is-active': filterAS === 'SE1' }"
-          @click="filterAS = 'SE1'"
+          v-for="as in aidesSoignants"
+          :key="as.id"
+          class="filter-btn"
+          :class="{ 'is-active': filterAS === as.code }"
+          @click="filterAS = as.code"
         >
-          SE1
-        </button>
-        <button
-          class="filter-btn se2"
-          :class="{ 'is-active': filterAS === 'SE2' }"
-          @click="filterAS = 'SE2'"
-        >
-          SE2
-        </button>
-        <button
-          class="filter-btn sc1"
-          :class="{ 'is-active': filterAS === 'SC1' }"
-          @click="filterAS = 'SC1'"
-        >
-          SC1
-        </button>
-        <button
-          class="filter-btn sc2"
-          :class="{ 'is-active': filterAS === 'SC2' }"
-          @click="filterAS = 'SC2'"
-        >
-          SC2
-        </button>
-        <button
-          class="filter-btn sg"
-          :class="{ 'is-active': filterAS === 'SG' }"
-          @click="filterAS = 'SG'"
-        >
-          SG
+          {{ as.code }}
         </button>
       </div>
       <button v-if="filterAS !== 'all'" class="btn-pdf" @click="downloadPDF">
