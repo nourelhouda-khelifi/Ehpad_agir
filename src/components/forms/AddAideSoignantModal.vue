@@ -9,7 +9,7 @@
 
       <!-- Form -->
       <form @submit.prevent="submitForm" class="form">
-        <!-- Row 1: Code, Nom, Prénom -->
+        <!-- Row 1: Code, Couleur -->
         <div class="form-row">
           <div class="form-group">
             <label for="code">Code *</label>
@@ -22,55 +22,12 @@
             />
           </div>
           <div class="form-group">
-            <label for="nom">Nom *</label>
-            <input
-              id="nom"
-              v-model="formData.nom"
-              type="text"
-              placeholder="ex: Dupont"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label for="prenom">Prénom *</label>
-            <input
-              id="prenom"
-              v-model="formData.prenom"
-              type="text"
-              placeholder="ex: Marie"
-              required
-            />
-          </div>
-        </div>
-
-        <!-- Row 2: Secteur, Couleur -->
-        <div class="form-row">
-          <div class="form-group">
-            <label for="secteur">Secteur</label>
-            <input
-              id="secteur"
-              v-model="formData.secteur"
-              type="text"
-              placeholder="ex: Est"
-            />
-          </div>
-          <div class="form-group">
             <label for="color">Couleur</label>
             <input
               id="color"
               v-model="formData.color"
               type="color"
             />
-          </div>
-          <div class="form-group checkbox">
-            <label for="actif">
-              <input
-                id="actif"
-                v-model="formData.actif"
-                type="checkbox"
-              />
-              Actif
-            </label>
           </div>
         </div>
 
@@ -110,11 +67,7 @@ const { createAideSoignant } = useAidesSoignants()
 
 const formData = ref({
   code: '',
-  nom: '',
-  prenom: '',
-  secteur: '',
-  color: '#3498db',
-  actif: true
+  color: '#3498db'
 })
 
 const isSubmitting = ref(false)
@@ -128,11 +81,7 @@ const closeModal = () => {
 const resetForm = () => {
   formData.value = {
     code: '',
-    nom: '',
-    prenom: '',
-    secteur: '',
-    color: '#3498db',
-    actif: true
+    color: '#3498db'
   }
   errorMessage.value = ''
 }
@@ -143,14 +92,6 @@ const submitForm = async () => {
   // Validations
   if (!formData.value.code.trim()) {
     errorMessage.value = 'Le code est obligatoire'
-    return
-  }
-  if (!formData.value.nom.trim()) {
-    errorMessage.value = 'Le nom est obligatoire'
-    return
-  }
-  if (!formData.value.prenom.trim()) {
-    errorMessage.value = 'Le prénom est obligatoire'
     return
   }
 

@@ -385,7 +385,15 @@ const updatePatient = async (patientId, field, value) => {
       throw new Error(`Erreur ${response.status}: ${response.statusText}`)
     }
     
-    console.log(`Patient ${patientId} mis à jour avec succès`)
+    // Récupérer et appliquer la réponse du serveur
+    const responseData = await response.json()
+    if (responseData && responseData.id) {
+      // Mettre à jour le patient local avec la réponse du serveur
+      Object.assign(patient, responseData)
+      console.log(`✅ Patient ${patientId} mis à jour avec succès. Nouveau ${field}: ${responseData[field]}`)
+    } else {
+      console.log(`Patient ${patientId} mis à jour avec succès`)
+    }
   } catch (err) {
     console.error('Erreur lors de la mise à jour du patient:', err)
     // Restaurer la valeur précédente en cas d'erreur

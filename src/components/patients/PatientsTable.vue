@@ -65,15 +65,15 @@
           </td>
           <td class="priority-cell">
             <select 
-              :value="patient.priorite || getPatientPriority(patient.profil)" 
-              @change="$emit('update-patient', patient.id, 'priorite', $event.target.value ? parseInt($event.target.value) : null)"
+              :value="patient.priorite || ''" 
+              @change="$emit('update-patient', patient.id, 'priorite', $event.target.value || null)"
               class="cell-select priority-select"
             >
               <option value="">🔹 Non défini</option>
-              <option value="1">1 - Basse</option>
-              <option value="2">2 - Normale</option>
-              <option value="3">3 - Haute</option>
-              <option value="4">4 - Critique</option>
+              <option value="BASSE">1 - Basse</option>
+              <option value="NORMALE">2 - Normale</option>
+              <option value="HAUTE">3 - Haute</option>
+              <option value="CRITIQUE">4 - Critique</option>
             </select>
           </td>
           <td class="temps-cell">
