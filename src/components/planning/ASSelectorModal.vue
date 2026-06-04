@@ -1,222 +1,168 @@
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content">
+
+      <!-- Header -->
       <div class="modal-header">
-        <div class="modal-title-area">
-          <h2 class="modal-title">Assigner un Aide-Soignant</h2>
-          <p class="modal-subtitle">
-            <strong>{{ patientNom }}</strong> · {{ jourLabel }} · {{ activiteLabel }}
-          </p>
+        <div class="modal-header-top">
+          <div class="modal-context">
+            <span class="context-chip">{{ activiteLabel }}</span>
+            <span class="context-sep">·</span>
+            <span class="context-date">{{ jourLabel }}</span>
+          </div>
+          <button class="close-btn" @click="$emit('close')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
         </div>
-        <button class="close-btn" @click="$emit('close')">✕</button>
+        <h2 class="modal-title">{{ patientNom }}</h2>
+
+        <!-- Recommandation inline -->
+        <div v-if="recommandation && !asActuel" class="reco-inline">
+          <span class="reco-icon">✨</span>
+          <span><strong>{{ recommandation.code }}</strong> est le moins chargé ({{ recommandation.chargeMinutes }} min)</span>
+        </div>
+
+        <!-- Assignation actuelle -->
+        <div v-if="asActuel" class="current-inline">
+          <span>Assigné : <strong>{{ asActuel }}</strong></span>
+          <button class="btn-remove" @click="handleRemove">Retirer</button>
+        </div>
       </div>
 
-      <div v-if="recommandation && !asActuel" class="reco-banner">
-        <span class="reco-icon">✨</span>
-        <div class="reco-content">
-          <div class="reco-title">Recommandation</div>
-          <div class="reco-message">
-            <strong>{{ recommandation.code }}</strong> est l'AS le moins chargé cette semaine ({{ recommandation.chargeMinutes }} min)
+      <div class="modal-body">
+
+        <!-- Type toggle -->
+        <div class="field-group">
+          <label class="field-label">Type</label>
+          <div class="segmented">
+            <button
+              type="button"
+              class="seg-btn"
+              :class="{ 'is-active': assignmentType === 'single' }"
+              @click="assignmentType = 'single'; selectedAS2 = null"
+            >👤 1 Aide</button>
+            <button
+              type="button"
+              class="seg-btn"
+              :class="{ 'is-active': assignmentType === 'shared' }"
+              @click="assignmentType = 'shared'"
+            >👥 2 Aides</button>
           </div>
         </div>
-      </div>
 
-      <div v-if="asActuel" class="current-banner">
-        <span>Actuellement assigné : <strong>{{ asActuel }}</strong></span>
-        <button class="btn-remove" @click="handleRemove">🗑️ Retirer l'assignation</button>
-      </div>
-
-      <div class="section-label">Type d'assignation</div>
-      <div class="type-control">
-        <button
-          type="button"
-          class="type-btn"
-          :class="{ 'is-active': assignmentType === 'single' }"
-          @click="assignmentType = 'single'; selectedAS2 = null"
-        >
-          👤 1 Aide
-        </button>
-        <button
-          type="button"
-          class="type-btn"
-          :class="{ 'is-active': assignmentType === 'shared' }"
-          @click="assignmentType = 'shared'"
-        >
-          👥 2 Aides
-        </button>
-      </div>
-
-      <div class="section-label" style="margin-top: 20px;">Charge actuelle (Semaine {{ semaine }})</div>
-
-      <div class="as-list">
-        <div
-          v-for="as in aidesAvecCharge"
-          :key="as.id"
-          class="as-item"
-          :class="{
-            'is-selected': selectedAS === as.code,
-            'is-selected-2': selectedAS2 === as.code,
-            'is-recommended': recommandation?.code === as.code && !asActuel,
-            'is-overload': as.niveau === 'surcharge'
-          }"
-          @click="selectedAS = as.code"
-        >
-          <input
-            :id="`as-${as.code}`"
-            :checked="selectedAS === as.code"
-            type="radio"
-            class="as-radio"
-          />
-
-          <label :for="`as-${as.code}`" class="as-label">
-            <div class="as-code">
-              <ASBadge :code="as.code" />
-            </div>
-
-            <div class="as-charge">
+        <!-- AS Selection -->
+        <div class="field-group">
+          <label class="field-label">{{ assignmentType === 'shared' ? '1er Aide-Soignant' : 'Aide-Soignant' }}</label>
+          <div class="as-grid">
+            <div
+              v-for="as in aidesAvecCharge"
+              :key="as.id"
+              class="as-card"
+              :class="{
+                'is-selected': selectedAS === as.code,
+                'is-recommended': recommandation?.code === as.code && !asActuel,
+              }"
+              @click="selectedAS = as.code"
+            >
+              <div class="as-card-top">
+                <ASBadge :code="as.code" />
+                <span class="as-niveau-chip" :class="`niveau-${as.niveau}`">{{ as.labelNiveau }}</span>
+                <span v-if="recommandation?.code === as.code && !asActuel" class="reco-star">✨</span>
+              </div>
               <ChargeBar :minutes="as.chargeMinutes" />
-              <div class="as-meta">
-                <span>{{ as.chargeMinutes }} min · {{ as.nbPatients }} patient(s)</span>
-                <span v-if="recommandation?.code === as.code && !asActuel" class="reco-tag">✨ Recommandé</span>
+              <div class="as-card-meta">{{ as.chargeMinutes }} min</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2ème AS -->
+        <div v-if="assignmentType === 'shared'" class="field-group">
+          <label class="field-label">2ème Aide-Soignant</label>
+          <div class="as-grid">
+            <div
+              v-for="as in aidesAvecCharge"
+              :key="as.id"
+              class="as-card"
+              :class="{
+                'is-selected-2': selectedAS2 === as.code,
+                'is-disabled': as.code === selectedAS,
+              }"
+              @click="as.code !== selectedAS && (selectedAS2 = as.code)"
+            >
+              <div class="as-card-top">
+                <ASBadge :code="as.code" />
+                <span class="as-niveau-chip" :class="`niveau-${as.niveau}`">{{ as.labelNiveau }}</span>
+              </div>
+              <ChargeBar :minutes="as.chargeMinutes" />
+              <div class="as-card-meta">{{ as.chargeMinutes }} min</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Durée (single) -->
+        <div v-if="assignmentType === 'single'" class="field-group field-row">
+          <label class="field-label">Durée</label>
+          <div class="stepper">
+            <button type="button" class="step-btn" @click="selectedDuree = Math.max(5, (selectedDuree || 30) - 5)">−</button>
+            <span class="step-val">{{ selectedDuree || 30 }} min</span>
+            <button type="button" class="step-btn" @click="selectedDuree = Math.min(120, (selectedDuree || 30) + 5)">+</button>
+          </div>
+        </div>
+
+        <!-- Durée (shared) -->
+        <div v-if="assignmentType === 'shared'" class="field-group">
+          <label class="field-label">Durées</label>
+          <div class="shared-durations">
+            <div class="shared-dur-row">
+              <span class="shared-dur-label">{{ selectedAS || '1er AS' }}</span>
+              <div class="stepper stepper-sm">
+                <button type="button" class="step-btn" @click="selectedDuree1 = Math.max(5, (selectedDuree1 || 15) - 5); syncDurations()">−</button>
+                <span class="step-val">{{ selectedDuree1 || 15 }} min</span>
+                <button type="button" class="step-btn" @click="selectedDuree1 = Math.min(120, (selectedDuree1 || 15) + 5); syncDurations()">+</button>
               </div>
             </div>
-
-            <div class="as-niveau" :class="`niveau-${as.niveau}`">{{ as.labelNiveau }}</div>
-          </label>
-        </div>
-      </div>
-
-      <div v-if="assignmentType === 'shared'" class="section-label" style="margin-top: 20px;">2ème Aide</div>
-      <div v-if="assignmentType === 'shared'" class="as-list">
-        <div
-          v-for="as in aidesAvecCharge"
-          :key="as.id"
-          class="as-item"
-          :class="{
-            'is-selected-2': selectedAS2 === as.code,
-            'is-disabled': as.code === selectedAS,
-            'is-overload': as.niveau === 'surcharge'
-          }"
-          @click="as.code !== selectedAS && (selectedAS2 = as.code)"
-        >
-          <input
-            :id="`as2-${as.code}`"
-            :checked="selectedAS2 === as.code"
-            type="radio"
-            :disabled="as.code === selectedAS"
-            class="as-radio"
-          />
-
-          <label :for="`as2-${as.code}`" class="as-label">
-            <div class="as-code">
-              <ASBadge :code="as.code" />
-            </div>
-
-            <div class="as-charge">
-              <ChargeBar :minutes="as.chargeMinutes" />
-              <div class="as-meta">
-                <span>{{ as.chargeMinutes }} min · {{ as.nbPatients }} patient(s)</span>
+            <div class="shared-dur-row">
+              <span class="shared-dur-label">{{ selectedAS2 || '2e AS' }}</span>
+              <div class="stepper stepper-sm">
+                <button type="button" class="step-btn" @click="selectedDuree2 = Math.max(5, (selectedDuree2 || 15) - 5); syncDurations()">−</button>
+                <span class="step-val">{{ selectedDuree2 || 15 }} min</span>
+                <button type="button" class="step-btn" @click="selectedDuree2 = Math.min(120, (selectedDuree2 || 15) + 5); syncDurations()">+</button>
               </div>
             </div>
-
-            <div class="as-niveau" :class="`niveau-${as.niveau}`">{{ as.labelNiveau }}</div>
-          </label>
-        </div>
-      </div>
-
-      <div class="section-label" style="margin-top: 24px;">Durée de l'activité</div>
-      <div v-if="assignmentType === 'single'" class="duration-control">
-        <input
-          v-model.number="selectedDuree"
-          type="number"
-          min="5"
-          max="120"
-          step="5"
-          class="duration-input"
-          placeholder="Durée en minutes"
-        />
-        <span class="duration-unit">minutes</span>
-      </div>
-
-      <div v-if="assignmentType === 'shared'" class="duration-shared">
-        <div class="duration-total">
-          <label>Durée totale :</label>
-          <div class="duration-control-shared">
-            <input
-              v-model.number="selectedDureeTotal"
-              type="number"
-              min="10"
-              max="240"
-              step="5"
-              class="duration-input"
-              placeholder="Durée totale en minutes"
-            />
-            <span class="duration-unit">minutes</span>
+            <div class="shared-total">Total : <strong>{{ (selectedDuree1 || 0) + (selectedDuree2 || 0) }} min</strong></div>
           </div>
         </div>
-        <div class="duration-split">
-          <div class="duration-per-as">
-            <label>{{ selectedAS }} :</label>
-            <div class="duration-control-shared">
-              <input
-                v-model.number="selectedDuree1"
-                type="number"
-                min="5"
-                max="240"
-                step="5"
-                class="duration-input"
-                @change="syncDurations"
-                placeholder="Durée"
-              />
-              <span class="duration-unit">min</span>
-            </div>
-          </div>
-          <div class="duration-per-as">
-            <label>{{ selectedAS2 || '2e Aide' }} :</label>
-            <div class="duration-control-shared">
-              <input
-                v-model.number="selectedDuree2"
-                type="number"
-                min="5"
-                max="240"
-                step="5"
-                class="duration-input"
-                @change="syncDurations"
-                placeholder="Durée"
-              />
-              <span class="duration-unit">min</span>
-            </div>
-          </div>
-          <div class="duration-sum">
-            Total: <strong>{{ (selectedDuree1 || 0) + (selectedDuree2 || 0) }} min</strong>
+
+        <!-- Moment -->
+        <div class="field-group field-row">
+          <label class="field-label">Moment</label>
+          <div class="segmented">
+            <button
+              v-for="option in momentOptions"
+              :key="option.key"
+              type="button"
+              class="seg-btn"
+              :class="{ 'is-active': selectedMoment === option.key }"
+              @click="selectedMoment = option.key"
+            >{{ option.label }}</button>
           </div>
         </div>
+
       </div>
 
-      <div class="section-label" style="margin-top: 24px;">Moment de l'activité</div>
-      <div class="moment-control">
-        <button
-          v-for="option in momentOptions"
-          :key="option.key"
-          type="button"
-          class="moment-btn"
-          :class="{ 'is-active': selectedMoment === option.key }"
-          @click="selectedMoment = option.key"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-
+      <!-- Footer -->
       <div class="modal-footer">
-        <button class="btn btn-secondary" @click="$emit('close')">Annuler</button>
-        <button 
-          class="btn btn-primary" 
-          :disabled="!selectedAS || (assignmentType === 'shared' && (!selectedAS2 || !selectedDuree1 || !selectedDuree2))" 
+        <button class="btn-cancel" @click="$emit('close')">Annuler</button>
+        <button
+          class="btn-confirm"
+          :disabled="!selectedAS || (assignmentType === 'shared' && (!selectedAS2 || !selectedDuree1 || !selectedDuree2))"
           @click="handleConfirm"
         >
-          {{ asActuel ? 'Modifier' : 'Confirmer' }}<span v-if="selectedAS"> {{ selectedAS }}</span><span v-if="assignmentType === 'shared' && selectedAS2"> + {{ selectedAS2 }}</span>
+          {{ asActuel ? 'Modifier' : 'Confirmer' }}
+          <span v-if="selectedAS" class="confirm-as">{{ selectedAS }}<span v-if="assignmentType === 'shared' && selectedAS2"> + {{ selectedAS2 }}</span></span>
         </button>
       </div>
+
     </div>
   </div>
 </template>
@@ -343,470 +289,435 @@ const handleRemove = () => {
 </script>
 
 <style scoped>
+/* ── Overlay ─────────────────────────────────── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn var(--transition-base) ease;
+  animation: overlayIn 0.2s ease;
 }
 
-@keyframes fadeIn {
+@keyframes overlayIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
+/* ── Modal shell ─────────────────────────────── */
 .modal-content {
   background: white;
-  border-radius: var(--radius-lg);
-  width: 560px;
-  max-width: calc(100vw - 32px);
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-xl);
-  animation: slideUp var(--transition-base) ease;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(18px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.modal-header {
+  border-radius: 16px;
+  width: 500px;
+  max-width: calc(100vw - 24px);
+  max-height: 92vh;
+  overflow: hidden;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--color-border-light);
+  flex-direction: column;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+  animation: modalIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.modal-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-text-primary);
+@keyframes modalIn {
+  from { transform: translateY(16px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ── Header ──────────────────────────────────── */
+.modal-header {
+  padding: 20px 20px 16px;
+  background: linear-gradient(135deg, #F8FAFF 0%, #EEF2FF 100%);
+  border-bottom: 1px solid #E8EEFF;
+  flex-shrink: 0;
+}
+
+.modal-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 8px;
 }
 
-.modal-subtitle {
-  font-size: 15px;
+.modal-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
   color: var(--color-text-secondary);
+}
+
+.context-chip {
+  background: var(--color-primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+
+.context-sep {
+  color: var(--color-text-tertiary);
+}
+
+.context-date {
+  font-weight: 500;
 }
 
 .close-btn {
-  font-size: 18px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
   color: var(--color-text-tertiary);
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: all 0.15s;
+  background: transparent;
+  cursor: pointer;
 }
 
 .close-btn:hover {
-  background: var(--color-bg-secondary);
+  background: rgba(0, 0, 0, 0.07);
   color: var(--color-text-primary);
 }
 
-.reco-banner {
-  display: flex;
-  gap: 12px;
-  padding: 14px 24px;
-  background: linear-gradient(135deg, #DCFCE7 0%, #D1FAE5 100%);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.reco-icon {
+.modal-title {
   font-size: 18px;
-}
-
-.reco-title {
-  font-size: 12px;
   font-weight: 700;
-  color: var(--color-success-dark);
-  margin-bottom: 2px;
+  color: var(--color-text-primary);
+  margin: 0;
 }
 
-.reco-message {
+.reco-inline {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--color-success-dark);
+  background: #D1FAE5;
+  padding: 5px 10px;
+  border-radius: 8px;
 }
 
-.current-banner {
+.reco-icon { font-size: 13px; }
+
+.current-inline {
+  margin-top: 8px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
-  background: var(--color-primary-light);
-  font-size: 13px;
+  justify-content: space-between;
+  font-size: 12px;
   color: var(--color-primary);
-  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-primary-light);
+  padding: 5px 10px;
+  border-radius: 8px;
 }
 
 .btn-remove {
-  font-size: 12px;
-  color: var(--color-danger);
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-}
-
-.btn-remove:hover {
-  background: var(--color-danger-light);
-}
-
-.section-label {
-  padding: 20px 24px 12px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  border-top: 2px solid var(--color-border-light);
-}
-
-.as-list {
-  padding: 0 24px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.as-item {
-  border: 2px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  background: white;
-  box-shadow: var(--shadow-xs);
-  position: relative;
-  overflow: hidden;
-}
-
-.as-item::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity var(--transition-base);
-  pointer-events: none;
-}
-
-.as-item:hover {
-  border-color: var(--color-primary);
-  background: var(--color-bg-tertiary);
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-2px);
-}
-
-.as-item:hover::before {
-  opacity: 0.5;
-}
-
-.as-item.is-selected {
-  border-color: var(--color-primary);
-  background: linear-gradient(135deg, var(--color-primary-light) 0%, rgba(37, 99, 235, 0.15) 100%);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25), var(--shadow-md);
-  border-width: 3px;
-  transform: scale(1.02);
-}
-
-.as-item.is-recommended {
-  border-color: var(--color-success);
-  background: linear-gradient(135deg, var(--color-success-light) 0%, rgba(16, 185, 129, 0.08) 100%);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1), var(--shadow-sm);
-}
-
-.as-item.is-overload {
-  /* Aides en surcharge restent sélectionnables */
-}
-
-.as-radio {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.as-label {
-  display: grid;
-  grid-template-columns: 80px 1fr auto;
-  gap: 18px;
-  align-items: center;
-  padding: 18px 20px;
-  cursor: pointer;
-  font-size: 15px;
-}
-
-.as-code {
-  display: flex;
-  align-items: center;
-}
-
-.as-charge {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.as-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  font-weight: 500;
-}
-
-.reco-tag {
-  color: var(--color-success-dark);
-  font-weight: 700;
-}
-
-.as-niveau {
   font-size: 11px;
   font-weight: 700;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-
-.niveau-leger {
-  background: var(--color-success-light);
-  color: var(--color-success-dark);
-}
-
-.niveau-normal {
-  background: #FEF3C7;
-  color: #854D0E;
-}
-
-.niveau-eleve {
-  background: var(--color-warning-light);
-  color: var(--color-warning-dark);
-}
-
-.niveau-surcharge {
-  background: var(--color-danger-light);
-  color: var(--color-danger-dark);
-}
-
-.modal-footer {
-  display: flex;
-  gap: 10px;
-  padding: 16px 24px 20px;
-  border-top: 1px solid var(--color-border-light);
-  background: var(--color-bg-tertiary);
-}
-
-.btn {
-  flex: 1;
-  padding: 14px 20px;
-  border-radius: var(--radius-md);
-  font-size: 15px;
-  font-weight: 700;
-  transition: all var(--transition-base);
+  color: var(--color-danger);
+  padding: 2px 8px;
+  border-radius: 6px;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.btn-remove:hover { background: var(--color-danger-light); }
 
-.btn-secondary {
-  background: white;
-  border: 2px solid var(--color-border-light);
-  color: var(--color-text-primary);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: var(--color-primary-light);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
-  color: white;
-  border: 2px solid var(--color-primary);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
-}
-
-.duration-control {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 0 24px 16px;
-}
-
-.duration-input {
-  flex: 1;
-  padding: 12px 14px;
-  border: 2px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  font-size: 15px;
-  font-weight: 600;
-  transition: all var(--transition-base);
-}
-
-.duration-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
-}
-
-.duration-unit {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.moment-control {
-  display: flex;
-  gap: 12px;
-  padding: 0 24px 16px;
-}
-
-.moment-btn {
-  flex: 1;
-  padding: 14px 18px;
-  border: 2px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  background: white;
-  color: var(--color-text-primary);
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.moment-btn:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-  transform: translateY(-2px);
-}
-
-.moment-btn.is-active {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
-  color: white;
-  border-color: var(--color-primary);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.type-control {
-  display: flex;
-  gap: 12px;
-  padding: 0 24px 16px;
-}
-
-.type-btn {
-  flex: 1;
-  padding: 14px 20px;
-  border: 2px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  background: white;
-  color: var(--color-text-primary);
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.type-btn:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-  transform: translateY(-2px);
-}
-
-.type-btn.is-active {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
-  color: white;
-  border-color: var(--color-primary);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.duration-shared {
-  padding: 0 24px 16px;
+/* ── Body ────────────────────────────────────── */
+.modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex: 1;
 }
 
-.duration-total {
+/* ── Field group ─────────────────────────────── */
+.field-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.duration-total label {
-  font-size: 14px;
+.field-group.field-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-label {
+  font-size: 11px;
   font-weight: 700;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ── Segmented control ───────────────────────── */
+.segmented {
+  display: flex;
+  background: var(--color-bg-secondary);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.seg-btn {
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.18s;
+  background: transparent;
+}
+
+.seg-btn:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.7);
   color: var(--color-text-primary);
 }
 
-.duration-split {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  background: var(--color-bg-tertiary);
-  border-radius: var(--radius-md);
+.seg-btn.is-active {
+  background: white;
+  color: var(--color-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
-.duration-per-as {
+/* ── AS card grid ────────────────────────────── */
+.as-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.as-card {
+  padding: 10px;
+  border: 1.5px solid var(--color-border-light);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s;
+  background: white;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.duration-per-as label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-primary);
+.as-card:hover {
+  border-color: var(--color-primary);
+  background: #F8FAFF;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
 }
 
-.duration-control-shared {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+.as-card.is-selected {
+  border-color: var(--color-primary);
+  background: #EEF2FF;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
-.duration-sum {
-  font-size: 14px;
-  color: var(--color-text-primary);
-  padding-top: 12px;
-  border-top: 2px solid var(--color-border-light);
-  text-align: right;
-  font-weight: 700;
-}
-
-.as-item.is-selected-2 {
+.as-card.is-selected-2 {
   border-color: var(--color-warning);
-  background: linear-gradient(135deg, #FEF3C7 0%, rgba(251, 191, 36, 0.15) 100%);
-  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.25), var(--shadow-md);
-  border-width: 3px;
-  transform: scale(1.02);
+  background: #FFFBEB;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 
-.as-item.is-disabled {
-  opacity: 0.5;
+.as-card.is-recommended {
+  border-color: var(--color-success);
+  background: #F0FDF4;
+}
+
+.as-card.is-disabled {
+  opacity: 0.4;
   pointer-events: none;
+}
+
+.as-card-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.reco-star {
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.as-card-meta {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+/* ── Niveau chip ─────────────────────────────── */
+.as-niveau-chip {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 20px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.niveau-leger  { background: var(--color-success-light); color: var(--color-success-dark); }
+.niveau-normal { background: #FEF3C7; color: #854D0E; }
+.niveau-eleve  { background: var(--color-warning-light); color: var(--color-warning-dark); }
+.niveau-surcharge { background: var(--color-danger-light); color: var(--color-danger-dark); }
+
+/* ── Stepper ─────────────────────────────────── */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid var(--color-border-light);
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+}
+
+.step-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  background: transparent;
+  line-height: 1;
+}
+
+.step-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-primary);
+}
+
+.step-val {
+  min-width: 64px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  border-left: 1.5px solid var(--color-border-light);
+  border-right: 1.5px solid var(--color-border-light);
+  padding: 0 4px;
+  line-height: 34px;
+}
+
+.stepper-sm .step-btn { width: 28px; height: 28px; font-size: 16px; }
+.stepper-sm .step-val { min-width: 56px; line-height: 28px; font-size: 12px; }
+
+/* ── Shared durations ────────────────────────── */
+.shared-durations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-bg-tertiary);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-light);
+}
+
+.shared-dur-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shared-dur-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  min-width: 48px;
+}
+
+.shared-total {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-align: right;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* ── Footer ──────────────────────────────────── */
+.modal-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-tertiary);
+  flex-shrink: 0;
+}
+
+.btn-cancel {
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: white;
+  border: 1.5px solid var(--color-border-light);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-cancel:hover {
+  border-color: #CBD5E1;
+  color: var(--color-text-primary);
+}
+
+.btn-confirm {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  background: var(--color-primary);
+  border: none;
+  cursor: pointer;
+  transition: all 0.18s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.confirm-as {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 12px;
 }
 </style>

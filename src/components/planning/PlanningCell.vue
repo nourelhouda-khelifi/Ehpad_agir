@@ -15,7 +15,7 @@
       </div>
     </div>
     <span v-else-if="isWarning" class="cell-warning">+ Assigner</span>
-    <span v-else class="cell-empty">—</span>
+    <span v-else class="cell-empty">+</span>
   </div>
 </template>
 
@@ -58,7 +58,7 @@ const cellClass = computed(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
+  min-height: 62px;
   padding: 8px;
   cursor: pointer;
   border-left: 1px solid var(--color-border-light);
@@ -155,24 +155,12 @@ const cellClass = computed(() => ({
 }
 
 .is-warning {
-  background: rgba(226, 75, 74, 0.08);
-  border: 1px dashed var(--color-danger);
+  background: rgba(226, 75, 74, 0.05);
   border-left: 3px dashed var(--color-danger);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    background: rgba(226, 75, 74, 0.08);
-  }
-  50% {
-    background: rgba(226, 75, 74, 0.12);
-  }
 }
 
 .is-warning:hover {
-  background: rgba(226, 75, 74, 0.15);
-  animation: none;
+  background: rgba(226, 75, 74, 0.1);
 }
 
 .is-shared {
@@ -209,25 +197,33 @@ const cellClass = computed(() => ({
 }
 
 .cell-warning {
-  color: var(--color-danger-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-danger);
   font-size: 11px;
   font-weight: 700;
-  animation: fadeInScale 0.3s ease-out;
+  padding: 4px 8px;
+  border: 1.5px dashed var(--color-danger);
+  border-radius: 6px;
+  background: rgba(226, 75, 74, 0.06);
+  transition: all 0.2s;
 }
 
-@keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+.planning-cell:hover .cell-warning {
+  background: rgba(226, 75, 74, 0.12);
+  border-style: solid;
 }
 
 .cell-empty {
-  color: var(--color-text-tertiary);
-  font-size: 14px;
+  color: #CBD5E1;
+  font-size: 18px;
+  font-weight: 300;
+  transition: all 0.2s;
+}
+
+.planning-cell:hover .cell-empty {
+  color: #94A3B8;
+  transform: scale(1.3);
 }
 </style>

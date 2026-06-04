@@ -75,6 +75,8 @@
       @update-patient="updatePatient"
       @reorder-patients="handleReorderPatients"
       @move-patient="handleMovePatient"
+      @edit-patient="openEditModal"
+      @delete-patient="deletePatient"
     />
 
     <!-- Pagination -->
@@ -89,11 +91,13 @@
     </template>
   </div>
 
-  <!-- Modal Création Patient -->
-  <PatientFormModal 
+  <!-- Modal Création / Édition Patient -->
+  <PatientFormModal
     :is-open="showFormModal"
-    @close="showFormModal = false"
+    :patient="editingPatient"
+    @close="showFormModal = false; editingPatient = null"
     @patient-created="onPatientCreated"
+    @patient-updated="onPatientUpdated"
   />
 </template>
 
@@ -113,6 +117,7 @@ import { mockPatients } from '@/data/mockPatients.js'
 import { PATIENT_PROFILS, PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 import { usePatients } from '@/composables/usePatients'
 import { patientService } from '@/api/services/patientService.js'
+import apiClient from '@/api/client.js'
 
 const router = useRouter()
 
@@ -121,6 +126,7 @@ const { patients, loading, error, loadPatients } = usePatients()
 
 // Modal
 const showFormModal = ref(false)
+const editingPatient = ref(null)
 
 // Charger au montage
 onMounted(() => {
@@ -301,26 +307,9 @@ const updatePatient = async (patientId, field, value) => {
     })
     
     // Envoyer la modification au serveur
-    const response = await fetch(`http://localhost:8081/api/patients/${patientId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(cleanedPatient)
-    })
-    
-    if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`)
-    }
-    
-    // Récupérer et appliquer la réponse du serveur
-    const responseData = await response.json()
+    const responseData = await apiClient.put(`/patients/${patientId}`, cleanedPatient)
     if (responseData && responseData.id) {
-      // Mettre à jour le patient local avec la réponse du serveur
       Object.assign(patient, responseData)
-      console.log(`✅ Patient ${patientId} mis à jour avec succès. Nouveau ${field}: ${responseData[field]}`)
-    } else {
-      console.log(`Patient ${patientId} mis à jour avec succès`)
     }
   } catch (err) {
     console.error('Erreur lors de la mise à jour du patient:', err)
@@ -424,10 +413,27 @@ const openPatient = (id) => {
   router.push(`/patients/${id}`)
 }
 
-// Gérer la création d'un nouveau patient
-const onPatientCreated = (newPatient) => {
-  // Recharger la liste des patients
+const openEditModal = (patient) => {
+  editingPatient.value = patient
+  showFormModal.value = true
+}
+
+const onPatientCreated = () => {
   loadPatients()
+}
+
+const onPatientUpdated = () => {
+  loadPatients()
+}
+
+const deletePatient = async (patientId) => {
+  try {
+    await apiClient.delete(`/patients/${patientId}`)
+    await loadPatients()
+  } catch (err) {
+    console.error('Erreur suppression patient:', err)
+    alert('Erreur lors de la suppression : ' + err.message)
+  }
 }
 </script>
 

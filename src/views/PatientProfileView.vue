@@ -51,6 +51,7 @@
         <InfoRow label="Aide soignant" :value="patient.aideSoignant ? 'Oui' : 'Non'" />
         <InfoRow label="Petit-déjeuner avec aide" :value="patient.petitDejeunerAide ? 'Oui' : 'Non'" />
         <InfoRow label="Sans douche" :value="patient.sansDouche ? 'Oui' : 'Non'" />
+        <InfoRow label="Groupe coucher 🌙" :value="groupeCoucherLabel(patient.groupeCoucher)" />
       </SectionCard>
     </div>
   </div>
@@ -69,6 +70,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import apiClient from '@/api/client.js'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -76,6 +78,15 @@ import SectionCard from '@/components/ui/SectionCard.vue'
 import InfoRow from '@/components/ui/InfoRow.vue'
 
 const route = useRoute()
+
+const groupeCoucherLabel = (groupe) => {
+  const labels = {
+    HELIOS: '🌙 Hélios (18:30 – 19:30)',
+    GRANDE_SALLE: '🍽️ Grande Salle à Manger (19:30 – 20:30)',
+    NON_DEFINI: '—'
+  }
+  return labels[groupe] || '—'
+}
 
 const patient = ref(null)
 const patientAlerts = ref([])
@@ -129,16 +140,8 @@ onMounted(async () => {
   
   try {
     const patientId = parseInt(route.params.id)
-    const response = await fetch(`http://localhost:8081/api/patients/${patientId}`)
-    if (response.ok) {
-      patient.value = await response.json()
-    }
-    
-    // Fetch patient alerts
-    const alertsResponse = await fetch(`http://localhost:8081/api/alertes/patient/${patientId}`)
-    if (alertsResponse.ok) {
-      patientAlerts.value = await alertsResponse.json()
-    }
+    patient.value = await apiClient.get(`/patients/${patientId}`)
+    patientAlerts.value = await apiClient.get(`/alertes/patient/${patientId}`).catch(() => [])
   } catch (error) {
     console.error('Erreur fetch patient:', error)
   }

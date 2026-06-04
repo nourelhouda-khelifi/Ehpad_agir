@@ -75,8 +75,24 @@
           </td>
           <td>
             <div class="action-buttons">
-              <button class="action-btn" @click="$emit('open-patient', patient.id)">
-                Voir détails
+              <button class="action-btn btn-details" @click="$emit('open-patient', patient.id)" title="Voir le profil">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Détails
+              </button>
+              <button class="action-btn btn-edit" @click="$emit('edit-patient', patient)" title="Modifier">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Modifier
+              </button>
+              <template v-if="deletingId === patient.id">
+                <button class="action-btn btn-confirm-delete" @click="$emit('delete-patient', patient.id); deletingId = null">
+                  ✓ Confirmer
+                </button>
+                <button class="action-btn btn-cancel-delete" @click="deletingId = null">
+                  ✕
+                </button>
+              </template>
+              <button v-else class="action-btn btn-delete" @click="deletingId = patient.id" title="Supprimer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
               </button>
             </div>
           </td>
@@ -96,10 +112,11 @@ const props = defineProps({
   sortOrder: { type: String, default: 'asc' }
 })
 
-const emit = defineEmits(['open-patient', 'sort', 'update-patient', 'reorder-patients', 'move-patient'])
+const emit = defineEmits(['open-patient', 'sort', 'update-patient', 'reorder-patients', 'move-patient', 'edit-patient', 'delete-patient'])
 
 const draggedPatientId = ref(null)
 const dragOverPatientId = ref(null)
+const deletingId = ref(null)
 
 const categories = computed(() => Object.values(PATIENT_CATEGORIES))
 const profils = computed(() => 
@@ -254,9 +271,9 @@ td {
 
 .action-buttons {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
   align-items: center;
+  flex-wrap: nowrap;
 }
 
 .order-btn {
@@ -405,21 +422,68 @@ td {
 }
 
 .action-btn {
-  padding: 8px 14px;
-  border: 1.5px solid #2563EB;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
   border-radius: 6px;
-  background: white;
-  color: #2563EB;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  border: 1.5px solid transparent;
 }
 
-.action-btn:hover {
+.btn-details {
+  border-color: #2563EB;
+  color: #2563EB;
+  background: white;
+}
+.btn-details:hover {
   background: #2563EB;
   color: white;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.btn-edit {
+  border-color: #64748B;
+  color: #64748B;
+  background: white;
+}
+.btn-edit:hover {
+  background: #64748B;
+  color: white;
+}
+
+.btn-delete {
+  border-color: #FCA5A5;
+  color: #EF4444;
+  background: white;
+  padding: 6px 8px;
+}
+.btn-delete:hover {
+  background: #FEE2E2;
+  border-color: #EF4444;
+}
+
+.btn-confirm-delete {
+  border-color: #EF4444;
+  background: #EF4444;
+  color: white;
+}
+.btn-confirm-delete:hover {
+  background: #DC2626;
+}
+
+.btn-cancel-delete {
+  border-color: #D1D5DB;
+  color: #6B7280;
+  background: white;
+  padding: 6px 8px;
+}
+.btn-cancel-delete:hover {
+  background: #F3F4F6;
 }
 
 @media (max-width: 768px) {

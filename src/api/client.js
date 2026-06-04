@@ -4,6 +4,7 @@
  */
 
 import { API_CONFIG, getFullUrl } from './config.js'
+import { useAuth } from '@/composables/useAuth.js'
 
 /**
  * Client HTTP générique
@@ -18,10 +19,14 @@ class ApiClient {
   async request(method, endpoint, options = {}) {
     const url = getFullUrl(endpoint, options.id)
     
+    const { getToken } = useAuth()
+    const jwt = getToken()
+
     const config = {
       method,
       headers: {
         'Content-Type': 'application/json',
+        ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
         ...options.headers
       }
     }

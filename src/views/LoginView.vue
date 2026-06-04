@@ -2,64 +2,67 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import logoAgir from '../assets/logoagir .png'
+import { useAuth } from '@/composables/useAuth.js'
 
 const router = useRouter()
-const email = ref('')
+const { setAuth } = useAuth()
+
+const username = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const emailError = ref('')
+const usernameError = ref('')
 const passwordError = ref('')
+const isLoading = ref(false)
 
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
 }
 
-const validateEmail = (emailValue) => {
-  // Accepter "admin" ou une adresse email valide
-  if (emailValue === 'admin') return true
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(emailValue)
-}
-
-const validatePassword = (passwordValue) => {
-  return passwordValue.trim().length > 0
-}
-
 const handleLogin = async () => {
-  emailError.value = ''
+  usernameError.value = ''
   passwordError.value = ''
 
-  let isValid = true
-
-  if (!email.value) {
-    emailError.value = 'Veuillez entrer votre identifiant'
-    isValid = false
-  } else if (!validateEmail(email.value)) {
-    emailError.value = 'Identifiant non valide'
-    isValid = false
+  if (!username.value.trim()) {
+    usernameError.value = 'Veuillez entrer votre identifiant'
+    return
   }
-
-  if (!validatePassword(password.value)) {
+  if (!password.value.trim()) {
     passwordError.value = 'Veuillez entrer votre mot de passe'
-    isValid = false
+    return
   }
 
-  if (isValid) {
-    // Vérification des identifiants statiques
-    if (email.value === 'admin' && password.value === 'admin') {
-      console.log('Connexion réussie')
-      // Redirection vers le dashboard
-      router.push('/dashboard')
-    } else {
-      emailError.value = 'Identifiant ou mot de passe incorrect'
+  isLoading.value = true
+  try {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
+    const res = await fetch(`${apiBase}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username.value, password: password.value })
+    })
+
+    if (!res.ok) {
+      usernameError.value = 'Identifiant ou mot de passe incorrect'
+      return
     }
+
+    const data = await res.json()
+    setAuth(data.token, {
+      username: data.username,
+      role: data.role,
+      nom: data.nom,
+      prenom: data.prenom
+    })
+    router.push('/dashboard')
+
+  } catch (e) {
+    usernameError.value = 'Erreur de connexion au serveur'
+  } finally {
+    isLoading.value = false
   }
 }
 
 const handleKeyPress = (event) => {
-  if (event.key === 'Enter') {
-    handleLogin()
-  }
+  if (event.key === 'Enter') handleLogin()
 }
 </script>
 
@@ -74,17 +77,17 @@ const handleKeyPress = (event) => {
 
         <form @submit.prevent="handleLogin" class="login-form">
           <div class="form-group">
-            <label for="email" class="form-label">Identifiant</label>
+            <label for="username" class="form-label">Identifiant</label>
             <input
-              id="email"
-              v-model="email"
+              id="username"
+              v-model="username"
               type="text"
               placeholder="admin"
               class="form-input"
               @keypress="handleKeyPress"
-              @focus="emailError = ''"
+              @focus="usernameError = ''"
             />
-            <span v-if="emailError" class="error-message">{{ emailError }}</span>
+            <span v-if="usernameError" class="error-message">{{ usernameError }}</span>
           </div>
 
           <div class="form-group">
@@ -118,7 +121,9 @@ const handleKeyPress = (event) => {
             <span v-if="passwordError" class="error-message">{{ passwordError }}</span>
           </div>
 
-          <button type="submit" class="login-button">Connexion</button>
+          <button type="submit" class="login-button" :disabled="isLoading">
+            {{ isLoading ? 'Connexion...' : 'Connexion' }}
+          </button>
         </form>
       </div>
     </div>

@@ -10,7 +10,7 @@
           v-model="currentWeek"
           :base-week-start="baseWeekStart"
         />
-        <button class="btn btn-primary">📥 Export</button>
+        
       </div>
     </div>
 
@@ -24,38 +24,41 @@
           class="activity-pill"
           :class="{ 'is-active': selectedActivity === key }"
           @click="selectedActivity = key"
-          :style="{ borderColor: config.color, backgroundColor: selectedActivity === key ? config.color + '20' : 'transparent' }"
+          :style="selectedActivity === key
+            ? { borderColor: config.color, backgroundColor: config.color, color: 'white', boxShadow: `0 4px 14px ${config.color}55` }
+            : { borderColor: `${config.color}55`, color: config.color }"
         >
-          {{ config.icon }} {{ config.label }}
+          <span class="activity-dot" :style="selectedActivity === key ? { background: 'rgba(255,255,255,0.4)' } : { background: config.color }"></span>
+          {{ config.label }}
         </button>
       </div>
     </div>
 
     <div class="filters-bar">
-      <FilterPill :active="filterEtage === 'all'" :count="patients.length" @click="filterEtage = 'all'">
-        Tous les étages
-      </FilterPill>
-      <FilterPill :active="filterEtage === '1'" :count="countEtage(1)" @click="filterEtage = '1'">
-        1er étage
-      </FilterPill>
-      <FilterPill :active="filterEtage === '2'" :count="countEtage(2)" @click="filterEtage = '2'">
-        2ème étage
-      </FilterPill>
-      <FilterPill :active="filterEtage === '3'" :count="countEtage(3)" @click="filterEtage = '3'">
-        3ème étage
-      </FilterPill>
-      <FilterPill :active="filterAS === 'all'" :count="patients.length" @click="filterAS = 'all'">
-        Tous les AS
-      </FilterPill>
-      <FilterPill
-        v-for="code in aidesCodes"
-        :key="code"
-        :active="filterAS === code"
-        :count="countByAS(code)"
-        @click="filterAS = code"
-      >
-        {{ code }}
-      </FilterPill>
+      <div class="filter-group">
+        <span class="filter-group-label">Étage</span>
+        <FilterPill :active="filterEtage === 'all'" :count="patients.length" @click="filterEtage = 'all'">Tous</FilterPill>
+        <FilterPill :active="filterEtage === '1'" :count="countEtage(1)" @click="filterEtage = '1'">1er</FilterPill>
+        <FilterPill :active="filterEtage === '2'" :count="countEtage(2)" @click="filterEtage = '2'">2ème</FilterPill>
+        <FilterPill :active="filterEtage === '3'" :count="countEtage(3)" @click="filterEtage = '3'">3ème</FilterPill>
+      </div>
+
+      <div class="filter-sep"></div>
+
+      <div class="filter-group">
+        <span class="filter-group-label">Aide-Soignant</span>
+        <FilterPill :active="filterAS === 'all'" :count="patients.length" @click="filterAS = 'all'">Tous</FilterPill>
+        <FilterPill
+          v-for="code in aidesCodes"
+          :key="code"
+          :active="filterAS === code"
+          :count="countByAS(code)"
+          @click="filterAS = code"
+        >{{ code }}</FilterPill>
+      </div>
+
+      <div class="filter-sep"></div>
+
       <FilterPill :active="filterSansDouche" :count="patientsWithoutActivity.length" variant="danger" @click="filterSansDouche = !filterSansDouche">
         ⚠️ Sans {{ activitiesConfig[selectedActivity].label.toLowerCase() }}
       </FilterPill>
@@ -67,6 +70,7 @@
         :key="as.id"
         class="charge-mini"
         :class="`niveau-${as.niveau}`"
+        :style="{ borderTop: `3px solid ${getASColor(as.code)}` }"
       >
         <div class="charge-mini-head">
           <ASBadge :code="as.code" />
@@ -77,13 +81,36 @@
       </div>
     </div>
 
+    <!-- Onglets sous-groupes coucher -->
+    <div v-if="selectedActivity === 'coucher'" class="coucher-tabs">
+      <button
+        class="coucher-tab"
+        :class="{ 'is-active': coucherTab === 'HELIOS' }"
+        @click="coucherTab = 'HELIOS'"
+      >
+        🌙 Hélios
+        <span class="coucher-tab-time">18:30 – 19:30</span>
+        <span class="coucher-tab-count">{{ countGroupeCoucher('HELIOS') }} patients</span>
+      </button>
+      <button
+        class="coucher-tab"
+        :class="{ 'is-active': coucherTab === 'GRANDE_SALLE' }"
+        @click="coucherTab = 'GRANDE_SALLE'"
+      >
+        🍽️ Grande Salle à Manger
+        <span class="coucher-tab-time">19:30 – 20:30</span>
+        <span class="coucher-tab-count">{{ countGroupeCoucher('GRANDE_SALLE') }} patients</span>
+      </button>
+    </div>
+
     <div class="planning-grid-card">
       <div class="planning-grid">
         <div class="grid-header">
           <div class="grid-cell-header">Patient</div>
-          <div v-for="jour in jours" :key="jour.key" class="grid-cell-header">
+          <div v-for="jour in jours" :key="jour.key" class="grid-cell-header" :class="{ 'is-today': jour.isToday }">
             <span class="jour-label">{{ jour.short }}</span>
             <span class="jour-date">{{ jour.date }}</span>
+            <span v-if="jour.isToday" class="today-dot"></span>
           </div>
         </div>
 
@@ -153,66 +180,27 @@ import ChargeBar from '@/components/ui/ChargeBar.vue'
 import CalendarWeekSelector from '@/components/ui/CalendarWeekSelector.vue'
 import PlanningCell from '@/components/planning/PlanningCell.vue'
 import ASSelectorModal from '@/components/planning/ASSelectorModal.vue'
-import { clonePlanning, createEmptyPlanningForPatients, mockPlanningSemaine19, mockPlanningSemaine20 } from '@/data/mockPlanning.js'
 import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
 import { useCharge } from '@/composables/useCharge.js'
+import apiClient from '@/api/client.js'
 
-// LocalStorage keys
-const PLANNING_STORAGE_KEY = 'ehpad_planning_data'
-
-// Fonctions pour la persistance localStorage
-const loadPlanningFromStorage = () => {
-  try {
-    const stored = localStorage.getItem(PLANNING_STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch (error) {
-    console.error('Erreur chargement planning depuis localStorage:', error)
-  }
-  return null
-}
-
-const savePlanningToStorage = (planning) => {
-  try {
-    localStorage.setItem(PLANNING_STORAGE_KEY, JSON.stringify(planning))
-  } catch (error) {
-    console.error('Erreur sauvegarde planning dans localStorage:', error)
-  }
-}
-
-const hasAnyActivity = (weekPlanning) => {
-  return Object.values(weekPlanning || {}).some((patientDays) => {
-    return Object.values(patientDays || {}).some((dayActivities) => {
-      return Object.keys(dayActivities || {}).length > 0
-    })
-  })
-}
-
-const buildDefaultPlanningByWeek = () => ({
-  19: clonePlanning(mockPlanningSemaine19),
-  20: clonePlanning(mockPlanningSemaine20),
-  21: {}
-})
-
-const mergeStoredPlanningWithDefaults = (storedPlanning) => {
-  const merged = buildDefaultPlanningByWeek()
-
-  if (storedPlanning && typeof storedPlanning === 'object') {
-    Object.entries(storedPlanning).forEach(([week, planning]) => {
-      if (hasAnyActivity(planning)) {
-        merged[week] = planning
-      }
-    })
-  }
-
-  return merged
+// Mapping activité frontend → code TypeSoin backend
+const ACTIVITY_TO_CODE = {
+  petitDejeuner: 'PETIT_DEJEUNER',
+  douche:        'DOUCHE',
+  toilette:      'TOILETTE',
+  wc:            'MISE_WC',
+  lever:         'LEVER',
+  sieste:        'SIESTE',
+  coucher:       'COUCHER',
+  repas:         'AIDE_REPAS',
 }
 
 const patients = ref([])
 const aidesSoignants = ref([])
-const debugInfo = ref('initial state')
-const planningByWeek = ref(buildDefaultPlanningByWeek())
+const planningByWeek = ref({})
+const activityToTypeSoinId = ref({}) // { douche: 2, toilette: 1, ... }
+const typeSoinIdToActivity = ref({}) // { 2: 'douche', ... }
 
 // Calculer la semaine actuelle basée sur la date d'aujourd'hui
 const baseWeekStart = new Date(2026, 4, 11)
@@ -231,20 +219,23 @@ const modalOpen = ref(false)
 const modalPatient = ref(null)
 const modalJour = ref(null)
 
-// Configuration des activités
+// Configuration des activités (ordre d'affichage)
 const activitiesConfig = ref({
-  douche: { icon: '🛁', label: 'Douche', color: '#3B82F6' },
-  wc: { icon: '🚽', label: 'WC', color: '#8B5CF6' },
-  toilette: { icon: '🚿', label: 'Toilette', color: '#06B6D4' },
-  coucher: { icon: '🌙', label: 'Coucher', color: '#F59E0B' },
-  repas: { icon: '🍽️', label: 'Repas', color: '#10B981' },
-  lever: { icon: '⬆️', label: 'Lever', color: '#EC4899' },
-  sieste: { icon: '😴', label: 'Sieste', color: '#8B5CF6' },
-  petitDejeuner: { icon: '🥐', label: 'Petit déjeuner', color: '#F59E0B' }
+  petitDejeuner: { icon: '🥐', label: 'Petit déjeuner', color: '#F59E0B' },
+  douche:        { icon: '🛁', label: 'Douche',         color: '#3B82F6' },
+  toilette:      { icon: '🚿', label: 'Toilette',       color: '#06B6D4' },
+  wc:            { icon: '🚽', label: 'Mise WC',        color: '#8B5CF6' },
+  lever:         { icon: '⬆️', label: 'Lever',          color: '#EC4899' },
+  sieste:        { icon: '😴', label: 'Sieste',         color: '#64748B' },
+  coucher:       { icon: '🌙', label: 'Coucher',        color: '#F59E0B' },
 })
+
+// Sous-onglet actif pour le coucher
+const coucherTab = ref('HELIOS') // 'HELIOS' | 'GRANDE_SALLE'
 
 const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 const jours = computed(() => {
+  const today = new Date()
   return joursSemaine.map((key, index) => {
     const date = new Date(baseWeekStart)
     date.setDate(baseWeekStart.getDate() + index + (currentWeek.value - 19) * 7)
@@ -252,105 +243,99 @@ const jours = computed(() => {
     return {
       key,
       short: date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''),
-      date: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+      date: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+      isToday: date.toDateString() === today.toDateString()
     }
   })
 })
 
-const ensurePlanningForWeek = (week) => {
-  if (!planningByWeek.value[week]) {
-    planningByWeek.value[week] = createEmptyPlanningForPatients(patients.value)
-  }
+const asColorMap = { SE1: '#1D9E75', SE2: '#E24B4A', SC1: '#378ADD', SC2: '#5DCAA5', CH: '#F59E0B', SG: '#888780' }
+const getASColor = (code) => asColorMap[code] || '#6B7280'
+
+const countGroupeCoucher = (groupe) =>
+  patients.value.filter(p => p.groupeCoucher === groupe).length
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+const ensureWeek = (week) => {
+  if (!planningByWeek.value[week]) planningByWeek.value[week] = {}
 }
 
-watch(currentWeek, (week) => {
-  ensurePlanningForWeek(week)
-}, { immediate: true })
+watch(currentWeek, (week) => ensureWeek(week), { immediate: true })
 
-// Charger les patients et aides-soignants du backend
-onMounted(() => {
-  // Charger localStorage d'abord
-  const storedData = loadPlanningFromStorage()
-  if (storedData) {
-    planningByWeek.value = mergeStoredPlanningWithDefaults(storedData)
-  }
-  
-  // Ensuite charger l'API directement
-  fetch('http://localhost:8081/api/aides-soignants')
-    .then(r => r.json())
-    .then(data => { aidesSoignants.value = data })
-    .catch(e => console.error('Erreur fetch aides-soignants:', e))
-  
-  fetch('http://localhost:8081/api/patients')
-    .then(r => r.json())
-    .then(data => { 
-      patients.value = data
-      // Ensure planning exists for all patients in all weeks
-      Object.keys(planningByWeek.value).forEach(week => {
-        const weekPlanning = planningByWeek.value[week]
-        data.forEach(patient => {
-          if (!weekPlanning[patient.id]) {
-            weekPlanning[patient.id] = joursSemaine.reduce((acc, jour) => {
-              acc[jour] = {}
-              return acc
-            }, {})
-          }
-        })
+// ─── Chargement API ─────────────────────────────────────────────────────────
+
+const buildPlanningFromExecutions = (executions) => {
+  executions.forEach(execution => {
+    const execDate = new Date(execution.dateExecution + 'T00:00:00')
+    const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+    if (dayDiff < 0) return
+    const week = 19 + Math.floor(dayDiff / 7)
+    const dayOfWeek = dayDiff % 7
+    if (dayOfWeek < 0 || dayOfWeek > 6) return
+
+    const activity = typeSoinIdToActivity.value[execution.typeSoinId]
+    if (!activity) return
+
+    const hour = parseInt(execution.heureExecution?.split(':')[0] || '8')
+    let moment = 'matin'
+    if (hour >= 19) moment = '19-20'
+    else if (hour >= 18) moment = '18-19'
+    else if (hour >= 14) moment = 'soir'
+
+    const patientId = execution.patientId
+    const jour = joursSemaine[dayOfWeek]
+    const duree = parseInt(execution.commentaire?.match(/Dur[ée]+: (\d+)/)?.[1] || '30')
+
+    ensureWeek(week)
+    if (!planningByWeek.value[week][patientId]) planningByWeek.value[week][patientId] = {}
+    if (!planningByWeek.value[week][patientId][jour]) planningByWeek.value[week][patientId][jour] = {}
+
+    const existing = planningByWeek.value[week][patientId][jour][activity]
+    const asCode = execution.aideSoignant?.code
+
+    if (existing?._execId && asCode && existing.as !== asCode) {
+      // Transformer en partagé
+      planningByWeek.value[week][patientId][jour][activity] = {
+        type: 'shared',
+        ases: [existing.as, asCode],
+        durees: [existing.duree || 30, duree],
+        moment: existing.moment || moment,
+        _execIds: [existing._execId, execution.id]
+      }
+    } else if (!existing) {
+      planningByWeek.value[week][patientId][jour][activity] = {
+        as: asCode, duree, moment, _execId: execution.id
+      }
+    }
+  })
+}
+
+onMounted(async () => {
+  try {
+    const typeSoins = await apiClient.get('/types-soins')
+    const a2id = {}, id2a = {}
+    typeSoins.forEach(ts => {
+      Object.entries(ACTIVITY_TO_CODE).forEach(([activity, code]) => {
+        if (ts.code === code) { a2id[activity] = ts.id; id2a[ts.id] = activity }
       })
     })
-    .catch(e => console.error('Erreur fetch patients:', e))
-  
-  fetch('http://localhost:8081/api/executions')
-    .then(r => r.json())
-    .then(data => {
-      // Group by patient/week/day/activity/moment
-      const grouped = {}
-      data.forEach(execution => {
-        const execDate = new Date(execution.dateExecution + 'T00:00:00')
-        const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-        const week = 19 + Math.floor(dayDiff / 7)
-        const dayOfWeek = dayDiff % 7
-        
-        const activityMap = { 1: 'toilette', 2: 'douche', 3: 'pansement', 4: 'injection', 5: 'repas' }
-        const activity = activityMap[execution.typeSoinId] || 'toilette'
-        
-        const hour = parseInt(execution.heureExecution.split(':')[0])
-        let moment = 'matin'
-        if (hour >= 18) moment = hour === 18 ? '18-19' : hour === 19 ? '19-20' : 'soir'
-        else if (hour >= 14) moment = 'soir'
-        
-        const groupKey = `${execution.patientId}_${week}_${dayOfWeek}_${activity}_${moment}`
-        if (!grouped[groupKey]) {
-          grouped[groupKey] = {
-            week, patientId: execution.patientId, day: joursSemaine[dayOfWeek],
-            activity, moment, aides: [], duree: 30, commentaire: execution.commentaire
-          }
-        }
-        if (execution.aideSoignant?.code) grouped[groupKey].aides.push(execution.aideSoignant.code)
-      })
-      
-      // Add to planningByWeek structure
-      Object.values(grouped).forEach(group => {
-        if (!planningByWeek.value[group.week]) planningByWeek.value[group.week] = {}
-        if (!planningByWeek.value[group.week][group.patientId]) {
-          planningByWeek.value[group.week][group.patientId] = {}
-        }
-        if (!planningByWeek.value[group.week][group.patientId][group.day]) {
-          planningByWeek.value[group.week][group.patientId][group.day] = {}
-        }
-        
-        if (group.aides.length === 2) {
-          planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
-            type: 'shared', ases: group.aides, durees: [group.duree, group.duree], moment: group.moment
-          }
-        } else if (group.aides.length === 1) {
-          planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
-            as: group.aides[0], duree: group.duree, moment: group.moment
-          }
-        }
-      })
-    })
-    .catch(e => console.error('Erreur fetch executions:', e))
+    activityToTypeSoinId.value = a2id
+    typeSoinIdToActivity.value = id2a
+  } catch (e) { console.error('Erreur types-soins:', e) }
+
+  try {
+    aidesSoignants.value = await apiClient.get('/aides-soignants')
+  } catch (e) { console.error('Erreur aides-soignants:', e) }
+
+  try {
+    patients.value = await apiClient.get('/patients')
+  } catch (e) { console.error('Erreur patients:', e) }
+
+  try {
+    const executions = await apiClient.get('/executions')
+    buildPlanningFromExecutions(executions)
+  } catch (e) { console.error('Erreur executions:', e) }
 })
 
 const currentPlanning = computed(() => planningByWeek.value[currentWeek.value])
@@ -439,9 +424,16 @@ const patientsFiltres = computed(() => {
       return false
     }
 
-    // Filtre par AS : afficher uniquement si l'AS a réellement des soins assignés
+    // Filtre par AS
     if (filterAS.value !== 'all' && !rowHasAS(patient.id, filterAS.value)) {
       return false
+    }
+
+    // Filtre par groupe coucher quand l'activité coucher est sélectionnée
+    if (selectedActivity.value === 'coucher') {
+      if ((patient.groupeCoucher || 'NON_DEFINI') !== coucherTab.value) {
+        return false
+      }
     }
 
     return true
@@ -472,359 +464,86 @@ const closeModal = () => {
   modalJour.value = null
 }
 
-// Charger les données du localStorage et de l'API au montage
-onMounted(() => {
-  // Charger d'abord le localStorage IMMÉDIATEMENT
-  const storedData = loadPlanningFromStorage()
-  if (storedData) {
-    planningByWeek.value = mergeStoredPlanningWithDefaults(storedData)
-  }
-  
-  // Puis charger l'API dans une promesse séparée
-  setTimeout(() => {
-    // Fetch aides-soignants
-    fetch('http://localhost:8081/api/aides-soignants')
-      .then(r => r.json())
-      .then(data => {
-        aidesSoignants.value = data
-        
-        // Nettoyer la planning pour ne garder que les aides qui existent
-        if (data.length > 0) {
-          const validAideCodes = new Set(data.map(as => as.code))
-          Object.entries(planningByWeek.value).forEach(([week, weekPlanning]) => {
-            Object.entries(weekPlanning).forEach(([patientId, dayPlannings]) => {
-              Object.entries(dayPlannings).forEach(([day, activities]) => {
-                Object.entries(activities).forEach(([activity, actData]) => {
-                  if (actData?.type === 'shared') {
-                    actData.ases = actData.ases?.filter(code => validAideCodes.has(code))
-                    actData.durees = actData.durees?.slice(0, actData.ases.length)
-                    if (actData.ases.length === 0) {
-                      delete activities[activity]
-                    }
-                  } else if (actData?.as && !validAideCodes.has(actData.as)) {
-                    delete activities[activity]
-                  }
-                })
-              })
-            })
-          })
-        }
-      })
-      .catch(e => {
-        console.error('Erreur fetch aides-soignants:', e)
-      })
+// ─── Assignation / Suppression ─────────────────────────────────────────────
 
-    // Fetch patients
-    fetch('http://localhost:8081/api/patients')
-      .then(r => r.json())
-      .then(data => {
-        patients.value = data
-        
-        // Ensure planning exists for all patients
-        Object.keys(planningByWeek.value).forEach(week => {
-          const weekPlanning = planningByWeek.value[week]
-          data.forEach(patient => {
-            if (!weekPlanning[patient.id]) {
-              weekPlanning[patient.id] = joursSemaine.reduce((acc, jour) => {
-                acc[jour] = {}
-                return acc
-              }, {})
-            }
-          })
-        })
-      })
-      .catch(e => {
-        console.error('Erreur fetch patients:', e)
-      })
-
-    // Charger les ExecutionSoins depuis l'API
-    fetch('http://localhost:8081/api/executions')
-      .then(r => r.json())
-      .then(data => {
-        // Grouper les executions par patient/date/activity/typeSoin pour détecter les 2-aides
-        const grouped = {}
-        
-        data.forEach(execution => {
-          const execDate = new Date(execution.dateExecution + 'T00:00:00')
-          
-          // Calculer la semaine
-          const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-          const week = 19 + Math.floor(dayDiff / 7)
-          const dayOfWeek = dayDiff % 7
-          
-          // Mapper typeSoinId vers activity key
-          const activityMap = {
-            1: 'toilette',
-            2: 'douche',
-            3: 'pansement',
-            4: 'injection',
-            5: 'repas'
-          }
-          const activity = activityMap[execution.typeSoinId] || 'toilette'
-          
-          // Mapper heure vers moment
-          const hour = parseInt(execution.heureExecution.split(':')[0])
-          let moment = 'matin'
-          if (hour >= 18) moment = hour === 18 ? '18-19' : hour === 19 ? '19-20' : 'soir'
-          else if (hour >= 14) moment = 'soir'
-          
-          // Clé de groupement: patient/week/day/activity/moment
-          const groupKey = `${execution.patientId}_${week}_${dayOfWeek}_${activity}_${moment}`
-          
-          if (!grouped[groupKey]) {
-            grouped[groupKey] = {
-              week,
-              patientId: execution.patientId,
-              day: joursSemaine[dayOfWeek],
-              activity,
-              moment,
-              aides: [],
-              duree: parseInt(execution.commentaire?.match(/Durée: (\d+)/)?.[1] || '30'),
-              commentaire: execution.commentaire
-            }
-          }
-          
-          if (execution.aideSoignant?.code) {
-            grouped[groupKey].aides.push(execution.aideSoignant.code)
-          }
-        })
-        
-        // Ajouter à la structure planningByWeek
-        Object.values(grouped).forEach(group => {
-          if (!planningByWeek.value[group.week]) {
-            planningByWeek.value[group.week] = {}
-          }
-          if (!planningByWeek.value[group.week][group.patientId]) {
-            planningByWeek.value[group.week][group.patientId] = {}
-          }
-          if (!planningByWeek.value[group.week][group.patientId][group.day]) {
-            planningByWeek.value[group.week][group.patientId][group.day] = {}
-          }
-          
-          // Créer l'objet activité (1 aide ou 2 aides)
-          const numDuree = typeof group.duree === 'string' ? parseInt(group.duree) : group.duree
-          if (group.aides.length === 2) {
-            // Assignation 2 aides
-            planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
-              type: 'shared',
-              ases: group.aides,
-              durees: [numDuree, numDuree],
-              moment: group.moment
-            }
-          } else if (group.aides.length === 1) {
-            // Assignation 1 aide
-            planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
-              as: group.aides[0],
-              duree: numDuree,
-              moment: group.moment
-            }
-          }
-        })
-      })
-      .catch(e => {
-        console.error('Erreur fetch executions:', e)
-      })
-  }, 100)
-})
-
-// Sauvegarder les données PROFONDÉMENT dans localStorage
-watch(
-  () => planningByWeek.value,
-  (newValue) => {
-    savePlanningToStorage(newValue)
-  },
-  { deep: true, immediate: false }
-)
-
-const ensurePatientPlanning = (patientId) => {
-  if (!currentPlanning.value[patientId]) {
-    currentPlanning.value[patientId] = joursSemaine.reduce((acc, jour) => {
-      acc[jour] = {}
-      return acc
-    }, {})
-  }
+const getMomentAsHeure = (moment) => {
+  const map = { 'matin': '08:00', 'soir': '18:00', '18-19': '18:00', '19-20': '19:00' }
+  return map[moment] || '08:00'
 }
 
-const ensureDayPlanning = (patientId, jour) => {
-  if (!currentPlanning.value[patientId]) {
-    currentPlanning.value[patientId] = {}
-  }
-  if (!currentPlanning.value[patientId][jour]) {
-    currentPlanning.value[patientId][jour] = {}
-  }
+const getAideSoignantId = (code) => aidesSoignants.value.find(a => a.code === code)?.id || null
+
+const getDateStr = (jour) => {
+  const dayIndex = joursSemaine.indexOf(jour)
+  const d = new Date(baseWeekStart)
+  d.setDate(baseWeekStart.getDate() + (currentWeek.value - 19) * 7 + dayIndex)
+  return d.toLocaleDateString('en-CA')
 }
 
-const handleAssign = (data) => {
+const postExec = async (payload) => {
+  return apiClient.post('/executions', payload)
+}
+
+const deleteExecIds = async (ids) => {
+  if (!ids) return
+  const list = Array.isArray(ids) ? ids : [ids]
+  await Promise.all(list.map(id => apiClient.delete(`/executions/${id}`).catch(() => {})))
+}
+
+const handleAssign = async (data) => {
   if (!modalPatient.value || !modalJour.value) return
-  
-  // S'assurer que la semaine existe dans planningByWeek
-  if (!planningByWeek.value[currentWeek.value]) {
-    planningByWeek.value[currentWeek.value] = {}
+
+  const typeSoinId = activityToTypeSoinId.value[selectedActivity.value]
+  if (!typeSoinId) {
+    console.error('TypeSoin manquant pour', selectedActivity.value, '— vérifiez le DataInitializer')
+    closeModal()
+    return
   }
-  
-  // S'assurer que le patient existe dans la semaine
-  if (!planningByWeek.value[currentWeek.value][modalPatient.value.id]) {
-    planningByWeek.value[currentWeek.value][modalPatient.value.id] = {}
+
+  // Supprimer l'ancienne assignation en base
+  const existing = planningByWeek.value[currentWeek.value]?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]
+  if (existing) {
+    await deleteExecIds(existing._execId || existing._execIds)
   }
-  
-  // S'assurer que le jour existe pour le patient
-  if (!planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value]) {
-    planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value] = {}
-  }
-  
-  // Mettre à jour le planning local
-  if (data.type === 'shared') {
-    // Tâche à 2 aides
-    planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
-      type: 'shared',
-      ases: data.ases,
-      durees: data.durees.map(d => typeof d === 'string' ? parseInt(d) : d),
-      moment: data.moment || 'matin'
+
+  // S'assurer que la structure locale existe
+  ensureWeek(currentWeek.value)
+  if (!planningByWeek.value[currentWeek.value][modalPatient.value.id]) planningByWeek.value[currentWeek.value][modalPatient.value.id] = {}
+  if (!planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value]) planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value] = {}
+
+  const dateStr = getDateStr(modalJour.value)
+
+  try {
+    if (data.type === 'shared') {
+      const moment = data.moment || 'matin'
+      const [e1, e2] = await Promise.all([
+        postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[0]), secondAideSoignantId: getAideSoignantId(data.ases[1]), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[0]} min` }),
+        postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[1]), secondAideSoignantId: getAideSoignantId(data.ases[0]), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[1]} min` })
+      ])
+      planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
+        type: 'shared', ases: data.ases, durees: data.durees.map(d => +d), moment, _execIds: [e1.id, e2.id]
+      }
+    } else {
+      const { as: asCode, duree, moment } = data
+      const exec = await postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(asCode), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment || 'matin'), statut: 'PLANIFIE', commentaire: `Durée: ${duree || 30} min` })
+      planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
+        as: asCode, duree: +(duree || 30), moment: moment || 'matin', _execId: exec.id
+      }
     }
-  } else {
-    // Tâche simple (1 aide)
-    const { as: codeAS, duree, moment } = typeof data === 'string' ? { as: data, duree: 30, moment: 'matin' } : data
-    const numDuree = typeof duree === 'string' ? parseInt(duree) : (duree || 30)
-    planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
-      as: codeAS,
-      duree: numDuree,
-      moment: moment || 'matin'
-    }
+  } catch (e) {
+    console.error('Erreur sauvegarde:', e)
   }
-  
-  // Appeler l'API pour persister dans le backend
-  saveActivityToBackend(data)
-  
-  // Sauvegarder également au localStorage pour la persistance locale
-  savePlanningToStorage(planningByWeek.value)
-  
+
   closeModal()
 }
 
-const saveActivityToBackend = (data) => {
-  // Mapper l'activité sélectionnée en typeSoinId
-  const activityMap = {
-    douche: 2,
-    toilette: 1,
-    wc: 1,
-    coucher: 1,
-    repas: 5,
-    lever: 1,
-    sieste: 1,
-    petitDejeuner: 1
-  }
-  
-  const typeSoinId = activityMap[selectedActivity.value] || 1
-  
-  // Trouver l'ID de l'aide-soignant à partir du code
-  const getAideSoignantId = (code) => {
-    const as = aidesSoignants.value.find(a => a.code === code)
-    return as ? as.id : null
-  }
-  
-  // Convertir moment en heure
-  const getMomentAsHeure = (moment) => {
-    const momentMap = {
-      'matin': '08:00',
-      'soir': '18:00',
-      '18-19': '18:00',
-      '19-20': '19:00'
-    }
-    return momentMap[moment] || '08:00'
-  }
-  
-  // Construire la date complète: calculer à partir de baseWeekStart et du jour sélectionné
-  const dayIndex = joursSemaine.indexOf(modalJour.value)
-  const weekOffset = currentWeek.value - 19
-  const dateObj = new Date(baseWeekStart)
-  dateObj.setDate(baseWeekStart.getDate() + (weekOffset * 7) + dayIndex)
-  
-  // En mode shared: créer 2 executions (une par aide)
-  if (data.type === 'shared') {
-    const payloads = [
-      {
-        patientId: modalPatient.value.id,
-        typeSoinId: typeSoinId,
-        aideSoignantId: getAideSoignantId(data.ases[0]),
-        secondAideSoignantId: getAideSoignantId(data.ases[1]),
-        dateExecution: dateObj.toLocaleDateString('en-CA'),
-        heureExecution: getMomentAsHeure(data.moment || 'matin'),
-        statut: 'PLANIFIE',
-        commentaire: `Durée: ${data.durees[0]} min - 2 aides: ${data.ases[0]}, ${data.ases[1]}`
-      },
-      {
-        patientId: modalPatient.value.id,
-        typeSoinId: typeSoinId,
-        aideSoignantId: getAideSoignantId(data.ases[1]),
-        secondAideSoignantId: getAideSoignantId(data.ases[0]),
-        dateExecution: dateObj.toLocaleDateString('en-CA'),
-        heureExecution: getMomentAsHeure(data.moment || 'matin'),
-        statut: 'PLANIFIE',
-        commentaire: `Durée: ${data.durees[1]} min - 2 aides: ${data.ases[0]}, ${data.ases[1]}`
-      }
-    ]
-    
-    // Envoyer les deux executions
-    payloads.forEach(payload => {
-      fetch('http://localhost:8081/api/executions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then(result => {
-        console.log('Shared activity saved to backend:', result)
-      })
-      .catch(e => {
-        console.error('Erreur save shared activity:', e)
-      })
-    })
-  } else {
-    // Mode simple (1 aide)
-    const payload = {
-      patientId: modalPatient.value.id,
-      typeSoinId: typeSoinId,
-      aideSoignantId: getAideSoignantId(data.as),
-      dateExecution: dateObj.toLocaleDateString('en-CA'),
-      heureExecution: getMomentAsHeure(data.moment || 'matin'),
-      statut: 'PLANIFIE',
-      commentaire: `Durée: ${data.duree} min`
-    }
-    
-    // Appeler l'API pour 1 aide
-    fetch('http://localhost:8081/api/executions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    })
-    .then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      return r.json()
-    })
-    .then(result => {
-      console.log('Activity saved to backend:', result)
-    })
-    .catch(e => {
-      console.error('Erreur save activity:', e)
-    })
-  }
-}
-
-const handleRemove = () => {
+const handleRemove = async () => {
   if (!modalPatient.value || !modalJour.value) return
-  
-  // Vérifier que la structure existe avant de supprimer
-  if (planningByWeek.value[currentWeek.value]?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]) {
+  const existing = planningByWeek.value[currentWeek.value]?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]
+  if (existing) {
+    await deleteExecIds(existing._execId || existing._execIds)
     delete planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value]
   }
-  
   closeModal()
 }
 </script>
@@ -908,8 +627,38 @@ const handleRemove = () => {
 
 .filters-bar {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding-right: 4px;
+  white-space: nowrap;
+}
+
+.filter-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-light);
+  flex-shrink: 0;
 }
 
 /* Activity filter bar */
@@ -940,32 +689,37 @@ const handleRemove = () => {
 }
 
 .activity-pill {
-  padding: 6px 12px;
-  border: 1.5px solid var(--color-border-light);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: 1.5px solid;
   border-radius: 20px;
   background: white;
-  color: var(--color-text-primary);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
-  position: relative;
-  overflow: hidden;
 }
 
 .activity-pill:hover {
-  border-color: var(--color-primary);
-  background: rgba(37, 99, 235, 0.08);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+  filter: brightness(0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .activity-pill.is-active {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
-  color: white;
-  border-color: var(--color-primary);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  font-weight: 700;
+  transform: translateY(-1px);
+}
+
+.activity-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.2s;
 }
 
 .as-charges-summary {
@@ -1027,19 +781,76 @@ const handleRemove = () => {
 }
 
 .charge-mini.niveau-leger {
-  background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+  background: #F0FDF4;
 }
 
 .charge-mini.niveau-normal {
-  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+  background: #FEFCE8;
 }
 
 .charge-mini.niveau-eleve {
-  background: linear-gradient(135deg, #FFEDD5 0%, #FED7AA 100%);
+  background: #FFF7ED;
 }
 
 .charge-mini.niveau-surcharge {
-  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  background: #FEF2F2;
+}
+
+/* ── Onglets coucher ─────────────────────────── */
+.coucher-tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.coucher-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: left;
+  box-shadow: var(--shadow-xs);
+}
+
+.coucher-tab:hover {
+  border-color: #F59E0B;
+  background: #FFFBEB;
+  color: var(--color-text-primary);
+}
+
+.coucher-tab.is-active {
+  border-color: #F59E0B;
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  color: #92400E;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), var(--shadow-sm);
+}
+
+.coucher-tab-time {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.15);
+  color: #92400E;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+.coucher-tab-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.coucher-tab.is-active .coucher-tab-count {
+  color: #B45309;
 }
 
 .planning-grid-card {
@@ -1097,6 +908,29 @@ const handleRemove = () => {
   font-size: 10px;
   font-weight: 600;
   color: var(--color-text-tertiary);
+}
+
+.grid-cell-header.is-today {
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  color: var(--color-primary);
+}
+
+.grid-cell-header.is-today .jour-label {
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+.grid-cell-header.is-today .jour-date {
+  color: var(--color-primary-dark);
+}
+
+.today-dot {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  margin: 0 auto;
 }
 
 .grid-row {

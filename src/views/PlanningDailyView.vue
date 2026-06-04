@@ -91,6 +91,16 @@
                 @click="handleActivityClick(patient, jour, activityKey)"
               >
                 <span class="activity-type">{{ getActivityLabel(activityKey) }}</span>
+
+                <!-- Chip groupe coucher -->
+                <span
+                  v-if="activityKey === 'coucher' && patient.groupeCoucher && patient.groupeCoucher !== 'NON_DEFINI'"
+                  class="coucher-group-chip"
+                  :class="`coucher-${patient.groupeCoucher}`"
+                >
+                  {{ getCoucherGroupChip(patient.groupeCoucher) }}
+                </span>
+
                 <!-- Affichage simple -->
                 <span v-if="!activityData.type || activityData.type !== 'shared'" class="activity-as">
                   {{ activityData.as }}
@@ -154,70 +164,32 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import CalendarWeekSelector from '@/components/ui/CalendarWeekSelector.vue'
-import { mockPatients } from '@/data/mockPatients.js'
-import { mockAidesSoignants } from '@/data/mockAides.js'
-import { mockPlanningSemaine19, mockPlanningSemaine20, joursSemaine, clonePlanning, createEmptyPlanningForPatients } from '@/data/mockPlanning.js'
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 
-// LocalStorage key
-const PLANNING_STORAGE_KEY = 'ehpad_planning_data'
+import apiClient from '@/api/client.js'
 
-// Fonctions pour la persistance localStorage
-const loadPlanningFromStorage = () => {
-  try {
-    const stored = localStorage.getItem(PLANNING_STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch (error) {
-    console.error('Erreur chargement planning depuis localStorage:', error)
-  }
-  return null
-}
+const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
-const savePlanningToStorage = (planning) => {
-  try {
-    localStorage.setItem(PLANNING_STORAGE_KEY, JSON.stringify(planning))
-  } catch (error) {
-    console.error('Erreur sauvegarde planning dans localStorage:', error)
-  }
-}
-
-const hasAnyActivity = (weekPlanning) => {
-  return Object.values(weekPlanning || {}).some((patientDays) => {
-    return Object.values(patientDays || {}).some((dayActivities) => {
-      return Object.keys(dayActivities || {}).length > 0
-    })
-  })
-}
-
-const buildDefaultPlanningByWeek = () => ({
-  19: clonePlanning(mockPlanningSemaine19),
-  20: clonePlanning(mockPlanningSemaine20),
-  21: {}
-})
-
-const mergeStoredPlanningWithDefaults = (storedPlanning) => {
-  const merged = buildDefaultPlanningByWeek()
-
-  if (storedPlanning && typeof storedPlanning === 'object') {
-    Object.entries(storedPlanning).forEach(([week, planning]) => {
-      if (hasAnyActivity(planning)) {
-        merged[week] = planning
-      }
-    })
-  }
-
-  return merged
+// Mapping activité frontend → code TypeSoin backend
+const ACTIVITY_TO_CODE = {
+  petitDejeuner: 'PETIT_DEJEUNER',
+  douche:        'DOUCHE',
+  toilette:      'TOILETTE',
+  wc:            'MISE_WC',
+  lever:         'LEVER',
+  sieste:        'SIESTE',
+  coucher:       'COUCHER',
+  repas:         'AIDE_REPAS',
 }
 
 const patients = ref([])
 const aidesSoignants = ref([])
+const typeSoinIdToActivity = ref({})
 
 // Gestion des semaines
 const baseWeekStart = new Date(2026, 4, 11)
-const planningByWeek = ref(buildDefaultPlanningByWeek())
+const planningByWeek = ref({})
 
 // Calculer la semaine actuelle basée sur la date d'aujourd'hui
 const calculateCurrentWeek = () => {
@@ -228,31 +200,8 @@ const calculateCurrentWeek = () => {
 
 const currentWeek = ref(calculateCurrentWeek())
 
-const ensurePlanningForWeek = (week) => {
-  if (!planningByWeek.value[week]) {
-    // Si la semaine n'existe pas, créer une structure vide pour tous les patients du backend
-    planningByWeek.value[week] = {}
-    patients.value.forEach(patient => {
-      planningByWeek.value[week][patient.id] = joursSemaine.reduce((acc, jour) => {
-        acc[jour] = {}
-        return acc
-      }, {})
-    })
-  } else {
-    // Sinon, s'assurer que tous les patients du backend sont présents
-    patients.value.forEach(patient => {
-      if (!planningByWeek.value[week][patient.id]) {
-        planningByWeek.value[week][patient.id] = joursSemaine.reduce((acc, jour) => {
-          acc[jour] = {}
-          return acc
-        }, {})
-      }
-    })
-  }
-}
-
 watch(currentWeek, (week) => {
-  ensurePlanningForWeek(week)
+  if (!planningByWeek.value[week]) planningByWeek.value[week] = {}
 }, { immediate: true })
 
 const currentPlanning = computed(() => planningByWeek.value[currentWeek.value])
@@ -277,144 +226,67 @@ const datesOfWeek = computed(() => {
 
 const filterAS = ref('all')
 
-// Charger et synchroniser les données du localStorage et du backend
-onMounted(() => {
-  // Charger d'abord le localStorage
-  const storedData = loadPlanningFromStorage()
-  if (storedData) {
-    planningByWeek.value = mergeStoredPlanningWithDefaults(storedData)
-  }
-  
-  // Puis charger l'API directement (sans setTimeout)
-  // Fetch aides-soignants
-  fetch('http://localhost:8081/api/aides-soignants')
-    .then(r => r.json())
-    .then(data => {
-      aidesSoignants.value = data
+onMounted(async () => {
+  try {
+    const typeSoins = await apiClient.get('/types-soins')
+    const id2a = {}
+    typeSoins.forEach(ts => {
+      Object.entries(ACTIVITY_TO_CODE).forEach(([activity, code]) => {
+        if (ts.code === code) id2a[ts.id] = activity
+      })
     })
-    .catch(e => {
-      console.error('Erreur fetch aides-soignants:', e)
-    })
+    typeSoinIdToActivity.value = id2a
+  } catch (e) { console.error('Erreur types-soins:', e) }
 
-  // Fetch patients
-  fetch('http://localhost:8081/api/patients')
-    .then(r => r.json())
-    .then(data => {
-      patients.value = data
-      
-      // Ensure planning exists for all patients
-      Object.keys(planningByWeek.value).forEach(week => {
-        const weekPlanning = planningByWeek.value[week]
-        data.forEach(patient => {
-          if (!weekPlanning[patient.id]) {
-            weekPlanning[patient.id] = joursSemaine.reduce((acc, jour) => {
-              acc[jour] = {}
-              return acc
-            }, {})
-          }
-        })
-      })
-    })
-    .catch(e => {
-      console.error('Erreur fetch patients:', e)
-    })
+  try {
+    aidesSoignants.value = await apiClient.get('/aides-soignants')
+  } catch (e) { console.error('Erreur aides-soignants:', e) }
 
-  // Charger les ExecutionSoins depuis l'API
-  fetch('http://localhost:8081/api/executions')
-      .then(r => r.json())
-      .then(data => {
-        // Grouper les executions par patient/date/activity/typeSoin pour détecter les 2-aides
-        const grouped = {}
-        
-        data.forEach(execution => {
-          const execDate = new Date(execution.dateExecution + 'T00:00:00')
-          
-          // Calculer la semaine
-          const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-          const week = 19 + Math.floor(dayDiff / 7)
-          const dayOfWeek = dayDiff % 7
-          
-          // Mapper typeSoinId vers activity key
-          const activityMap = {
-            1: 'toilette',
-            2: 'douche',
-            3: 'pansement',
-            4: 'injection',
-            5: 'repas'
-          }
-          const activity = activityMap[execution.typeSoinId] || 'toilette'
-          
-          // Mapper heure vers moment
-          const hour = parseInt(execution.heureExecution.split(':')[0])
-          let moment = 'matin'
-          if (hour >= 18) moment = hour === 18 ? '18-19' : hour === 19 ? '19-20' : 'soir'
-          else if (hour >= 14) moment = 'soir'
-          
-          // Clé de groupement
-          const groupKey = `${execution.patientId}_${week}_${dayOfWeek}_${activity}_${moment}`
-          
-          if (!grouped[groupKey]) {
-            grouped[groupKey] = {
-              week,
-              patientId: execution.patientId,
-              day: joursSemaine[dayOfWeek],
-              activity,
-              moment,
-              aides: [],
-              duree: execution.commentaire?.match(/Durée: (\d+)/)?.[1] || 30,
-              commentaire: execution.commentaire
-            }
-          }
-          
-          if (execution.aideSoignant?.code) {
-            grouped[groupKey].aides.push(execution.aideSoignant.code)
-          }
-        })
-        
-        // Ajouter à la structure planningByWeek
-        Object.values(grouped).forEach(group => {
-          if (!planningByWeek.value[group.week]) {
-            planningByWeek.value[group.week] = {}
-          }
-          if (!planningByWeek.value[group.week][group.patientId]) {
-            planningByWeek.value[group.week][group.patientId] = {}
-          }
-          if (!planningByWeek.value[group.week][group.patientId][group.day]) {
-            planningByWeek.value[group.week][group.patientId][group.day] = {}
-          }
-          
-          // Créer l'objet activité (1 aide ou 2 aides)
-          if (group.aides.length === 2) {
-            // Assignation 2 aides
-            planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
-              type: 'shared',
-              ases: group.aides,
-              durees: [group.duree, group.duree],
-              moment: group.moment
-            }
-          } else if (group.aides.length === 1) {
-            // Assignation 1 aide
-            planningByWeek.value[group.week][group.patientId][group.day][group.activity] = {
-              as: group.aides[0],
-              duree: group.duree,
-              moment: group.moment
-            }
-          }
-        })
-      })
-      .catch(e => {
-        console.error('Erreur fetch executions:', e)
-      })
+  try {
+    patients.value = await apiClient.get('/patients')
+  } catch (e) { console.error('Erreur patients:', e) }
+
+  try {
+    const executions = await apiClient.get('/executions')
+    executions.forEach(execution => {
+      const execDate = new Date(execution.dateExecution + 'T00:00:00')
+      const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+      if (dayDiff < 0) return
+      const week = 19 + Math.floor(dayDiff / 7)
+      const dayOfWeek = dayDiff % 7
+      if (dayOfWeek < 0 || dayOfWeek > 6) return
+
+      const activity = typeSoinIdToActivity.value[execution.typeSoinId]
+      if (!activity) return
+
+      const hour = parseInt(execution.heureExecution?.split(':')[0] || '8')
+      let moment = 'matin'
+      if (hour >= 19) moment = '19-20'
+      else if (hour >= 18) moment = '18-19'
+      else if (hour >= 14) moment = 'soir'
+
+      const patientId = execution.patientId
+      const jour = joursSemaine[dayOfWeek]
+      const duree = parseInt(execution.commentaire?.match(/Dur[ée]+: (\d+)/)?.[1] || '30')
+
+      if (!planningByWeek.value[week]) planningByWeek.value[week] = {}
+      if (!planningByWeek.value[week][patientId]) planningByWeek.value[week][patientId] = {}
+      if (!planningByWeek.value[week][patientId][jour]) planningByWeek.value[week][patientId][jour] = {}
+
+      const existing = planningByWeek.value[week][patientId][jour][activity]
+      const asCode = execution.aideSoignant?.code
+
+      if (existing?._execId && asCode && existing.as !== asCode) {
+        planningByWeek.value[week][patientId][jour][activity] = {
+          type: 'shared', ases: [existing.as, asCode], durees: [existing.duree || 30, duree],
+          moment: existing.moment || moment, _execIds: [existing._execId, execution.id]
+        }
+      } else if (!existing) {
+        planningByWeek.value[week][patientId][jour][activity] = { as: asCode, duree, moment, _execId: execution.id }
+      }
+    })
+  } catch (e) { console.error('Erreur executions:', e) }
 })
-
-// Mettre à jour le localStorage quand les données changent
-watch(
-  () => planningByWeek.value,
-  (newValue) => {
-    savePlanningToStorage(newValue)
-  },
-  { deep: true, immediate: false }
-)
 
 // Référence pour capturer le planning
 const planningRef = ref(null)
@@ -510,6 +382,12 @@ const getActivityLabel = (activity) => {
   return activitiesConfig[activity]?.label || '?'
 }
 
+const getCoucherGroupChip = (groupe) => {
+  if (groupe === 'HELIOS') return '🌙 Hélios · 18:30–19:30'
+  if (groupe === 'GRANDE_SALLE') return '🍽️ Gde Salle · 19:30–20:30'
+  return ''
+}
+
 const getActivityClass = (activity) => {
   return `activity-${activity}`
 }
@@ -562,7 +440,7 @@ const downloadPDF = async () => {
         
         doc.setFontSize(10)
         doc.setFont(undefined, 'normal')
-        doc.text(`Aide-soignante: ${filterAS.value} - Semaine du 11 au 17 mai 2026`, pageWidth / 2, 14, { align: 'center' })
+        doc.text(`Aide-soignante: ${filterAS.value} — ${weekLabel.value}`, pageWidth / 2, 14, { align: 'center' })
         
         // Capture ultra haute résolution pour net maximal
         const canvas = await html2canvas(planningRef.value, {
@@ -600,36 +478,50 @@ const downloadPDF = async () => {
     // ===== PAGE 2: TOILETTES (mode portrait A4) =====
     doc.addPage('p', 'a4')
     const pageHeightToilettes = doc.internal.pageSize.getHeight()
-    
+
     doc.setFontSize(16)
     doc.text(`Tableau des Toilettes - ${filterAS.value}`, 15, 15)
 
     doc.setFontSize(10)
-    doc.text('Semaine du 11 au 17 mai 2026', 15, 25)
+    doc.text(weekLabel.value, 15, 25)
 
-    // Collecter les données de toilettes - TOUS les patients
+    // ── Collecte depuis la DB (planningByWeek) ──────────────────────────
+    const jourLabels = {
+      lundi: 'Lundi', mardi: 'Mardi', mercredi: 'Mercredi',
+      jeudi: 'Jeudi', vendredi: 'Vendredi', samedi: 'Samedi', dimanche: 'Dimanche'
+    }
+
     const toiletteRows = []
+    const week = currentWeek.value
+
     patients.value.forEach(patient => {
       const toiletteDays = []
-      const comments = []
+      const momentParJour = []
 
       joursSemaine.forEach(jour => {
-        if (patient.toilettes?.[jour] === filterAS.value) {
-          toiletteDays.push(jour.charAt(0).toUpperCase() + jour.slice(1))
-          const comment = patient.toilettesCommentaires?.[jour]
-          if (comment) {
-            comments.push(comment)
-          }
+        const act = planningByWeek.value[week]?.[patient.id]?.[jour]?.toilette
+        if (!act) return
+
+        const hasAS = act.type === 'shared'
+          ? act.ases?.includes(filterAS.value)
+          : act.as === filterAS.value
+
+        if (hasAS) {
+          toiletteDays.push(jourLabels[jour] || jour)
+          const momentLabel = act.moment === 'matin' ? 'Matin'
+            : act.moment === 'soir' ? 'Soir'
+            : act.moment === '18-19' ? '18h-19h'
+            : act.moment === '19-20' ? '19h-20h' : act.moment || ''
+          momentParJour.push(`${jourLabels[jour]} – ${momentLabel}${act.duree ? ` (${act.duree} min)` : ''}`)
         }
       })
 
-      // Ajouter SEULEMENT si le patient a au moins une toilette ce soignant
       if (toiletteDays.length > 0) {
         toiletteRows.push({
           patient: `${patient.prenom} ${patient.nom}`,
-          chambre: patient.chambre,
-          jours: toiletteDays.length > 0 ? toiletteDays.join(', ') : '-',
-          commentaires: comments.length > 0 ? comments.join('\n') : '-'
+          chambre: patient.numeroChambre || '-',
+          jours: toiletteDays.join(', '),
+          commentaires: momentParJour.join('\n')
         })
       }
     })
@@ -744,7 +636,7 @@ const downloadPDF = async () => {
     }
 
     // Télécharger
-    doc.save(`Planning_${filterAS.value}_semaine19.pdf`)
+    doc.save(`Planning_${filterAS.value}_S${currentWeek.value}.pdf`)
   } catch (error) {
     console.error('Erreur lors de la génération du PDF:', error)
     alert('Erreur lors de la génération du PDF: ' + error.message)
@@ -1043,6 +935,29 @@ const downloadPDF = async () => {
   background: #F97316 15%;
   color: #92400E;
   border-color: #F97316;
+}
+
+/* Chip groupe coucher */
+.coucher-group-chip {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 20px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.coucher-HELIOS {
+  background: rgba(251, 191, 36, 0.25);
+  color: #92400E;
+  border: 1px solid rgba(251, 191, 36, 0.5);
+}
+
+.coucher-GRANDE_SALLE {
+  background: rgba(139, 92, 246, 0.15);
+  color: #4C1D95;
+  border: 1px solid rgba(139, 92, 246, 0.35);
 }
 
 .activity-repas {

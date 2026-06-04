@@ -38,7 +38,6 @@
         </div>
         <p class="reco-message">{{ recommandation.message }}</p>
         <div class="reco-suggestions">
-          <strong>Suggestions :</strong>
           <ul>
             <li v-for="(suggestion, i) in recommandation.suggestions" :key="i">
               Transférer <strong>{{ suggestion.nbPatients }} patients</strong>
@@ -49,11 +48,11 @@
           </ul>
         </div>
       </div>
-      <button class="btn-reco">Voir suggestions de transfert</button>
+      
     </div>
 
     <!-- Heatmap charge -->
-    <SectionCard title="Heatmap charge — Semaine 19" icon="📅">
+    <SectionCard :title="`Heatmap charge — Semaine ${currentWeek}`" icon="📅">
       <!-- Filtre Jour / Matin / Soir -->
       <div class="filter-buttons">
         <button
@@ -112,8 +111,8 @@
 import { ref, computed, onMounted } from 'vue'
 
 import { useAidesSoignants } from '@/composables/useAidesSoignants.js'
+import apiClient from '@/api/client.js'
 import { useAideSoignantCharge } from '@/composables/useAideSoignantCharge.js'
-import { mockChargeJour, mockChargeJourPeriode, mockPatientsParAS } from '@/data/mockChargeJour.js'
 
 import ASCard from '@/components/aides/ASCard.vue'
 import ChargeHeatmap from '@/components/aides/ChargeHeatmap.vue'
@@ -132,8 +131,8 @@ const { aidesSoignants, loadAidesSoignants } = useAidesSoignants()
 const { plannings, chargeParJour, patientCount, loadChargeForAideSoignant } = useAideSoignantCharge()
 
 const chargeJour = ref({})
-const chargeJourPeriode = ref(mockChargeJourPeriode)
-const patientsParAS = ref(mockPatientsParAS)
+const chargeJourPeriode = ref({})
+const patientsParAS = ref({})
 const modalAS = ref(null)
 const modalChargeJour = ref({})
 const modalPatients = ref([])
@@ -154,7 +153,6 @@ const calculateCurrentWeek = () => {
 }
 
 const currentWeek = ref(calculateCurrentWeek())
-const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
 /**
  * Formater une date pour l'affichage
@@ -170,8 +168,7 @@ const formatDate = (dateString) => {
  */
 const loadAideSoignantAlerts = async () => {
   try {
-    const response = await fetch('http://localhost:8081/api/alertes')
-    const allAlerts = await response.json()
+    const allAlerts = await apiClient.get('/alertes')
     
     // Filtrer les alertes AS_SURCHARGE et les enrichir avec le code de l'aide-soignant
     const enrichedAlerts = allAlerts
@@ -187,56 +184,72 @@ const loadAideSoignantAlerts = async () => {
   }
 }
 
-/**
- * Calculer la charge par jour pour les ExecutionSoins d'une semaine
- */
-const calculateChargeParJourFromExecutions = (executions, asCode, week) => {
-  const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
-  const chargeByDay = {}
+const joursSemaineKeys = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
-  // Initialiser tous les jours
-  days.forEach(day => {
-    chargeByDay[day] = 0
-  })
+const getExecDuree = (execution) => {
+  const match = execution.commentaire?.match(/Dur[ée]+:\s*(\d+)/)
+  return parseInt(match?.[1] || '30')
+}
 
-  // Filtrer les executions pour cet AS et cette semaine
-  executions.forEach(execution => {
-    if (execution.aideSoignant?.code !== asCode) return
-
-    const execDate = new Date(execution.dateExecution + 'T00:00:00')
+// Filtre les exécutions d'un AS pour la semaine donnée,
+// EN DÉDUPLIQUANT par (patientId + jour + typeSoinId) — même logique que la page Activités.
+const getDeduplicatedExecs = (execs, asCode, week) => {
+  const seen = new Set()
+  const result = []
+  execs.forEach(exec => {
+    if (exec.aideSoignant?.code !== asCode) return
+    const execDate = new Date(exec.dateExecution + 'T00:00:00')
     const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
+    if (dayDiff < 0) return
     const execWeek = 19 + Math.floor(dayDiff / 7)
-    
     if (execWeek !== week) return
-
-    const dayOfWeek = dayDiff % 7
-    const day = days[dayOfWeek]
-    
-    // Durée par défaut = 30 min (à adapter selon le type de soin)
-    chargeByDay[day] = (chargeByDay[day] || 0) + 30
+    // Clé de déduplication : même patient + même jour + même type de soin
+    const key = `${exec.patientId}_${dayDiff % 7}_${exec.typeSoinId}`
+    if (seen.has(key)) return
+    seen.add(key)
+    result.push({ exec, dayDiff })
   })
+  return result
+}
 
+// Charge totale par jour (pour heatmap "Par jour")
+const calculateChargeParJourFromExecutions = (execs, asCode, week) => {
+  const chargeByDay = {}
+  joursSemaineKeys.forEach(d => { chargeByDay[d] = 0 })
+  getDeduplicatedExecs(execs, asCode, week).forEach(({ exec, dayDiff }) => {
+    const day = joursSemaineKeys[dayDiff % 7]
+    chargeByDay[day] = (chargeByDay[day] || 0) + getExecDuree(exec)
+  })
   return chargeByDay
 }
 
-/**
- * Charger la charge de tous les aides-soignants depuis les ExecutionSoins du backend
- */
+// Charge séparée matin/soir par jour (pour heatmap "Matin" et "Soir")
+const calculateChargeParPeriodeFromExecutions = (execs, asCode, week) => {
+  const chargeByDay = {}
+  joursSemaineKeys.forEach(d => { chargeByDay[d] = { matin: 0, soir: 0 } })
+  getDeduplicatedExecs(execs, asCode, week).forEach(({ exec, dayDiff }) => {
+    const day = joursSemaineKeys[dayDiff % 7]
+    const hour = parseInt(exec.heureExecution?.split(':')[0] || '8')
+    const periode = hour >= 14 ? 'soir' : 'matin'
+    chargeByDay[day][periode] = (chargeByDay[day][periode] || 0) + getExecDuree(exec)
+  })
+  return chargeByDay
+}
+
 const loadAllAidesSoignantCharges = async () => {
   loading.value = true
-  const allCharges = {}
-
   try {
-    // Récupérer tous les ExecutionSoins
-    const response = await fetch('http://localhost:8081/api/executions')
-    executions.value = await response.json()
+    executions.value = await apiClient.get('/executions')
 
-    // Calculer la charge pour chaque AS
+    const allCharges = {}
+    const allChargesPeriode = {}
     aidesSoignants.value.forEach(as => {
       allCharges[as.code] = calculateChargeParJourFromExecutions(executions.value, as.code, currentWeek.value)
+      allChargesPeriode[as.code] = calculateChargeParPeriodeFromExecutions(executions.value, as.code, currentWeek.value)
     })
 
     chargeJour.value = allCharges
+    chargeJourPeriode.value = allChargesPeriode
   } catch (err) {
     console.error('Erreur lors du chargement des charges:', err)
   } finally {
@@ -257,7 +270,7 @@ const chargeAffichee = computed(() => {
     return chargeJour.value
   }
   
-  // Pour matin/soir, transformer les données de mockChargeJourPeriode
+  // Pour matin/soir, transformer les données réelles par période
   const periode = heatmapView.value // 'matin' ou 'soir'
   const result = {}
   
@@ -281,15 +294,8 @@ const aides = computed(() => {
     else if (charge >= 90) niveau = 'eleve'
     else if (charge >= 60) niveau = 'normal'
     
-    // Compter les patients et soins uniques pour cette semaine
-    const execForThisAS = executions.value.filter(exec => {
-      if (exec.aideSoignant?.code !== as.code) return false
-      const execDate = new Date(exec.dateExecution + 'T00:00:00')
-      const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-      const execWeek = 19 + Math.floor(dayDiff / 7)
-      return execWeek === currentWeek.value
-    })
-    
+    // Compter les patients et soins dédupliqués pour cette semaine
+    const execForThisAS = getDeduplicatedExecs(executions.value, as.code, currentWeek.value).map(({ exec }) => exec)
     const uniquePatients = new Set(execForThisAS.map(e => e.patientId))
     
     return { 
