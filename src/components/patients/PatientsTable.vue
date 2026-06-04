@@ -61,12 +61,12 @@
             </select>
           </td>
           <td class="priority-cell">
-            <select 
-              :value="patient.priorite || ''" 
-              @change="$emit('update-patient', patient.id, 'priorite', $event.target.value || null)"
+            <select
+              :value="patient.priorite || 'NON_DEFINI'"
+              @change="$emit('update-patient', patient.id, 'priorite', $event.target.value)"
               class="cell-select priority-select"
             >
-              <option value="">🔹 Non défini</option>
+              <option value="NON_DEFINI">🔹 Non défini</option>
               <option value="BASSE">1 - Basse</option>
               <option value="NORMALE">2 - Normale</option>
               <option value="HAUTE">3 - Haute</option>
