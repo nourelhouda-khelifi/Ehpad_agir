@@ -12,11 +12,18 @@
         </div>
         <div>
           <div class="as-code">{{ as.code }}</div>
-          <div class="as-secteur">Secteur {{ as.secteur }}</div>
+          <div class="as-secteur">{{ as.secteur || 'Secteur' }}</div>
         </div>
       </div>
-      <div class="niveau-badge" :class="`badge-${as.niveau}`">
-        {{ niveauIcon }} {{ niveauLabel }}
+      <div class="card-header-right">
+        <div class="niveau-badge" :class="`badge-${as.niveau}`">
+          {{ niveauIcon }} {{ niveauLabel }}
+        </div>
+        <button
+          class="delete-btn"
+          title="Supprimer cet aide-soignant"
+          @click.stop="$emit('delete', as)"
+        >🗑️</button>
       </div>
     </div>
 
@@ -56,7 +63,7 @@ const props = defineProps({
   as: { type: Object, required: true }
 })
 
-defineEmits(['click'])
+defineEmits(['click', 'delete'])
 
 const niveauLabel = computed(() => {
   const labels = {
@@ -110,6 +117,30 @@ const niveauIcon = computed(() => {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 14px;
+}
+
+.card-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.delete-btn {
+  background: none;
+  border: 1px solid #fca5a5;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: #ef4444;
+  transition: background 0.15s, border-color 0.15s;
+  line-height: 1;
+}
+
+.delete-btn:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
 }
 
 .as-info {

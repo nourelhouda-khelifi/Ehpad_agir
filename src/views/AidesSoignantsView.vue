@@ -20,6 +20,7 @@
         :key="as.id"
         :as="as"
         @click="openDetail(as)"
+        @delete="confirmDeleteAS"
       />
 
       <!-- Card "Ajouter" -->
@@ -125,7 +126,7 @@ import SectionCard from '@/components/ui/SectionCard.vue'
 const baseWeekStart = new Date(2026, 4, 11)
 
 // Composable pour charger les aides-soignants depuis l'API
-const { aidesSoignants, loadAidesSoignants } = useAidesSoignants()
+const { aidesSoignants, loadAidesSoignants, deleteAideSoignant } = useAidesSoignants()
 
 // Composable pour charger la charge d'un AS
 const { plannings, chargeParJour, patientCount, loadChargeForAideSoignant } = useAideSoignantCharge()
@@ -379,8 +380,22 @@ const openAbsencesModal = () => {
   selectedAideSoignantNom.value = 'Tous les aides-soignants'
 }
 
+const confirmDeleteAS = async (as) => {
+  const soins = as.nbSoins || 0
+  const msg = soins > 0
+    ? `Supprimer ${as.code} ? Cet AS a ${soins} soin(s) planifié(s) cette semaine. Cette action est irréversible.`
+    : `Supprimer l'aide-soignant ${as.code} ? Cette action est irréversible.`
+  if (!confirm(msg)) return
+
+  try {
+    await deleteAideSoignant(as.id)
+    await loadAllAidesSoignantCharges()
+  } catch (err) {
+    alert(`Erreur lors de la suppression : ${err.message}`)
+  }
+}
+
 const onAideSoignantCreated = async (newAideSoignant) => {
-  // L'AS a été ajouté au composable, recharger la liste et les charges
   await loadAidesSoignants()
   await loadAllAidesSoignantCharges()
   await loadAideSoignantAlerts()

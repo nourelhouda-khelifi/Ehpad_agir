@@ -34,6 +34,19 @@
       </div>
     </div>
 
+    <!-- Recherche patient -->
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="search-input"
+        placeholder="Rechercher par nom, prénom ou chambre..."
+        autocomplete="off"
+      />
+      <button v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</button>
+    </div>
+
     <div class="filters-bar">
       <div class="filter-group">
         <span class="filter-group-label">Étage</span>
@@ -214,6 +227,7 @@ const currentWeek = ref(calculateCurrentWeek())
 const filterEtage = ref('all')
 const filterAS = ref('all')
 const filterSansDouche = ref(false)
+const searchQuery = ref('')
 const selectedActivity = ref('douche')
 const modalOpen = ref(false)
 const modalPatient = ref(null)
@@ -415,7 +429,14 @@ const getCellActivityData = (activityData) => {
 }
 
 const patientsFiltres = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
   return patients.value.filter((patient) => {
+    if (q) {
+      const fullName = `${patient.nom} ${patient.prenom}`.toLowerCase()
+      const chambre = (patient.numeroChambre || '').toLowerCase()
+      if (!fullName.includes(q) && !chambre.includes(q)) return false
+    }
+
     if (filterEtage.value !== 'all' && patient.etage !== Number(filterEtage.value)) {
       return false
     }
@@ -623,6 +644,55 @@ const handleRemove = async () => {
   background: linear-gradient(135deg, var(--color-primary) 0%, #1D4ED8 100%);
   color: white;
   border: 1px solid var(--color-primary);
+}
+
+/* Barre de recherche */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  transition: border-color 0.15s;
+}
+
+.search-bar:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.search-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: transparent;
+  width: 280px;
+}
+
+.search-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.search-clear:hover {
+  color: var(--color-text-primary);
 }
 
 .filters-bar {
