@@ -14,10 +14,10 @@ import { computed } from 'vue'
 
 const props = defineProps({
   minutes: { type: Number, required: true },
-  maxMinutes: { type: Number, default: 140 },
-  thresholdLeger: { type: Number, default: 60 },
-  thresholdNormal: { type: Number, default: 90 },
-  thresholdEleve: { type: Number, default: 120 }
+  maxMinutes: { type: Number, default: 40 },
+  thresholdLeger: { type: Number, default: 15 },
+  thresholdNormal: { type: Number, default: 25 },
+  thresholdEleve: { type: Number, default: 35 }
 })
 
 const percentage = computed(() => Math.min((props.minutes / props.maxMinutes) * 100, 100))

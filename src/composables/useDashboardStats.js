@@ -120,7 +120,7 @@ export const useDashboardStats = () => {
 
       getDeduplicatedExecs(as.code).forEach(({ exec, dayIndex }) => {
         const day = days[dayIndex]
-        chargeByDay[day] = (chargeByDay[day] || 0) + parseDuree(exec.commentaire)
+        chargeByDay[day] = (chargeByDay[day] || 0) + 1
       })
 
       chargeData[as.code] = chargeByDay
@@ -242,16 +242,15 @@ export const useDashboardStats = () => {
       const patientsUniques = new Set()
 
       getDeduplicatedExecs(as.code).forEach(({ exec }) => {
-        const minutes = parseDuree(exec.commentaire)
         const heure = parseInt(exec.heureExecution?.split(':')[0] || '0')
 
         if (heure >= 6 && heure < 14) {
-          charges.matin[as.code] += minutes
+          charges.matin[as.code] += 1
         } else if (heure >= 14 && heure < 22) {
-          charges.soir[as.code] += minutes
+          charges.soir[as.code] += 1
         }
 
-        charges.toute[as.code] += minutes
+        charges.toute[as.code] += 1
         if (exec.patientId) patientsUniques.add(exec.patientId)
       })
 

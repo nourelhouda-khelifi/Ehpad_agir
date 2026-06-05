@@ -85,7 +85,7 @@
       >
         <div class="charge-mini-head">
           <ASBadge :code="as.code" />
-          <span class="charge-mini-value">{{ as.chargeMinutes }} min</span>
+          <span class="charge-mini-value">{{ as.chargeMinutes }} soins</span>
         </div>
         <ChargeBar :minutes="as.chargeMinutes" />
         <div class="charge-mini-meta">{{ as.nbActivites }} activité(s) · {{ as.nbPatients }} patient(s)</div>

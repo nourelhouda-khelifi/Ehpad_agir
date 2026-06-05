@@ -16,7 +16,7 @@
       <!-- Stats résumé -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-card-value">{{ as.chargeMinutes }}min</div>
+          <div class="stat-card-value">{{ as.chargeMinutes }} soins</div>
           <div class="stat-card-label">Charge totale</div>
         </div>
         <div class="stat-card">
@@ -52,7 +52,7 @@
                 }"
               ></div>
             </div>
-            <div class="day-bar-value">{{ minutes }}min</div>
+            <div class="day-bar-value">{{ minutes }}</div>
           </div>
         </div>
       </div>
@@ -118,8 +118,8 @@ const jourLabel = (jour) => {
   return labels[jour]
 }
 
-const getBarHeight = (minutes) => {
-  return Math.min((minutes / 140) * 100, 100)
+const getBarHeight = (nbSoins) => {
+  return Math.min((nbSoins / 8) * 100, 100)
 }
 
 const getBarColor = (minutes) => {

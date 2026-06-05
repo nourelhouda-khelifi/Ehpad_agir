@@ -2,25 +2,19 @@ import { computed } from 'vue'
 
 export function useCharge(planning, aidesSoignants) {
   const calculerChargeAS = (codeAS, planningData) => {
-    let totalMinutes = 0
     let nbActivites = 0
     const patientsUniques = new Set()
 
     Object.entries(planningData || {}).forEach(([patientId, jours]) => {
       Object.values(jours || {}).forEach((dayActivities) => {
-        // dayActivities is now { activity: { as, duree, moment } or { type: 'shared', ases, durees, moment }, ... }
         Object.values(dayActivities || {}).forEach((activity) => {
           if (activity?.type === 'shared') {
-            // Activité à 2 aides
             const asIndex = activity.ases?.indexOf(codeAS)
             if (asIndex !== undefined && asIndex >= 0) {
-              totalMinutes += activity.durees?.[asIndex] || 0
               nbActivites += 1
               patientsUniques.add(patientId)
             }
           } else if (activity?.as === codeAS) {
-            // Activité simple
-            totalMinutes += activity.duree || 0
             nbActivites += 1
             patientsUniques.add(patientId)
           }
@@ -28,38 +22,29 @@ export function useCharge(planning, aidesSoignants) {
       })
     })
 
-    return {
-      totalMinutes,
-      nbActivites,
-      nbPatients: patientsUniques.size
-    }
+    return { nbActivites, nbPatients: patientsUniques.size }
   }
 
-  const calculerNiveau = (minutes) => {
-    if (minutes < 60) return 'leger'
-    if (minutes < 90) return 'normal'
-    if (minutes < 120) return 'eleve'
+  const calculerNiveau = (nbSoins) => {
+    if (nbSoins < 15) return 'leger'
+    if (nbSoins < 25) return 'normal'
+    if (nbSoins < 35) return 'eleve'
     return 'surcharge'
   }
 
   const getLabelNiveau = (niveau) => {
-    const labels = {
-      leger: 'Léger',
-      normal: 'Normal',
-      eleve: 'Élevé',
-      surcharge: 'Surchargé'
-    }
+    const labels = { leger: 'Léger', normal: 'Normal', eleve: 'Élevé', surcharge: 'Surchargé' }
     return labels[niveau] || 'Normal'
   }
 
   const aidesSoignantsAvecCharge = computed(() => {
     return aidesSoignants.value.map((as) => {
       const charge = calculerChargeAS(as.code, planning.value)
-      const niveau = calculerNiveau(charge.totalMinutes)
+      const niveau = calculerNiveau(charge.nbActivites)
 
       return {
         ...as,
-        chargeMinutes: charge.totalMinutes,
+        chargeMinutes: charge.nbActivites,
         nbActivites: charge.nbActivites,
         nbPatients: charge.nbPatients,
         niveau,
@@ -69,7 +54,6 @@ export function useCharge(planning, aidesSoignants) {
   })
 
   const recommanderAS = computed(() => {
-    // Recommander l'AS avec la charge la plus faible (depuis que le champ actif n'existe plus)
     return [...aidesSoignantsAvecCharge.value].sort((a, b) => a.chargeMinutes - b.chargeMinutes)[0] || null
   })
 

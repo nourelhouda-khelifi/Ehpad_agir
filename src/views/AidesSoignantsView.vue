@@ -198,18 +198,18 @@ const getDeduplicatedExecs = (execs, asCode) => {
   return result
 }
 
-// Charge totale par jour (pour heatmap "Par jour")
+// Charge totale par jour (pour heatmap "Par jour") — compte les soins
 const calculateChargeParJourFromExecutions = (execs, asCode) => {
   const chargeByDay = {}
   joursSemaineKeys.forEach(d => { chargeByDay[d] = 0 })
   getDeduplicatedExecs(execs, asCode).forEach(({ exec, dayDiff }) => {
     const day = joursSemaineKeys[dayDiff % 7]
-    chargeByDay[day] = (chargeByDay[day] || 0) + getExecDuree(exec)
+    chargeByDay[day] = (chargeByDay[day] || 0) + 1
   })
   return chargeByDay
 }
 
-// Charge séparée matin/soir par jour (pour heatmap "Matin" et "Soir")
+// Charge séparée matin/soir par jour — compte les soins
 const calculateChargeParPeriodeFromExecutions = (execs, asCode) => {
   const chargeByDay = {}
   joursSemaineKeys.forEach(d => { chargeByDay[d] = { matin: 0, soir: 0 } })
@@ -217,7 +217,7 @@ const calculateChargeParPeriodeFromExecutions = (execs, asCode) => {
     const day = joursSemaineKeys[dayDiff % 7]
     const hour = parseInt(exec.heureExecution?.split(':')[0] || '8')
     const periode = hour >= 14 ? 'soir' : 'matin'
-    chargeByDay[day][periode] = (chargeByDay[day][periode] || 0) + getExecDuree(exec)
+    chargeByDay[day][periode] = (chargeByDay[day][periode] || 0) + 1
   })
   return chargeByDay
 }
@@ -274,11 +274,11 @@ const chargeAffichee = computed(() => {
 const aides = computed(() => {
   return aidesSoignants.value.map(as => {
     // Calculer la charge totale depuis chargeJour
-    const charge = Object.values(chargeJour.value[as.code] || {}).reduce((sum, min) => sum + (min || 0), 0)
+    const charge = Object.values(chargeJour.value[as.code] || {}).reduce((sum, n) => sum + (n || 0), 0)
     let niveau = 'leger'
-    if (charge >= 120) niveau = 'surcharge'
-    else if (charge >= 90) niveau = 'eleve'
-    else if (charge >= 60) niveau = 'normal'
+    if (charge >= 35) niveau = 'surcharge'
+    else if (charge >= 25) niveau = 'eleve'
+    else if (charge >= 15) niveau = 'normal'
     
     // Compter les patients et soins dédupliqués pour cette semaine
     const execForThisAS = getDeduplicatedExecs(executions.value, as.code, currentWeek.value).map(({ exec }) => exec)
@@ -305,7 +305,7 @@ const recommandation = computed(() => {
   const moyenne = aides.value.reduce((sum, as) => sum + as.chargeMinutes, 0) / aides.value.length
 
   return {
-    message: `${surchargeAS.code} est surchargé (${surchargeAS.chargeMinutes} min, soit ${Math.round(((surchargeAS.chargeMinutes - moyenne) / moyenne) * 100)}% au-dessus de la moyenne). Considérez transférer 2-3 patients vers les AS les moins chargés pour rééquilibrer la charge.`,
+    message: `${surchargeAS.code} est surchargé (${surchargeAS.chargeMinutes} soins, soit ${Math.round(((surchargeAS.chargeMinutes - moyenne) / moyenne) * 100)}% au-dessus de la moyenne). Considérez transférer 2-3 patients vers les AS les moins chargés pour rééquilibrer la charge.`,
     suggestions: sousCharges.slice(0, 2).map(as => {
       const ecart = surchargeAS.chargeMinutes - as.chargeMinutes
       return {

@@ -19,7 +19,7 @@
         <!-- Recommandation inline -->
         <div v-if="recommandation && !isCurrentAssigned" class="reco-inline">
           <span class="reco-icon">✨</span>
-          <span><strong>{{ recommandation.code }}</strong> est le moins chargé ({{ recommandation.chargeMinutes }} min)</span>
+          <span><strong>{{ recommandation.code }}</strong> est le moins chargé ({{ recommandation.chargeMinutes }} soins)</span>
         </div>
 
         <!-- Assignation actuelle -->
@@ -70,7 +70,7 @@
                 <span v-if="recommandation?.code === as.code && !isCurrentAssigned" class="reco-star">✨</span>
               </div>
               <ChargeBar :minutes="as.chargeMinutes" />
-              <div class="as-card-meta">{{ as.chargeMinutes }} min</div>
+              <div class="as-card-meta">{{ as.chargeMinutes }} soins</div>
             </div>
           </div>
         </div>
@@ -94,7 +94,7 @@
                 <span class="as-niveau-chip" :class="`niveau-${as.niveau}`">{{ as.labelNiveau }}</span>
               </div>
               <ChargeBar :minutes="as.chargeMinutes" />
-              <div class="as-card-meta">{{ as.chargeMinutes }} min</div>
+              <div class="as-card-meta">{{ as.chargeMinutes }} soins</div>
             </div>
           </div>
         </div>
@@ -183,48 +183,26 @@
           </div>
         </div>
 
-        <!-- Répéter sur d'autres semaines -->
-        <div class="field-group">
-          <label class="field-label">Répéter sur d'autres semaines</label>
-          <div class="weeks-repeat">
-
-            <div class="weeks-row">
-              <span class="weeks-label">🔮 Semaines suivantes</span>
-              <div class="weeks-quick">
-                <button type="button" v-for="n in [1,2,4,8,12]" :key="n"
-                  class="week-quick-btn"
-                  :class="{ 'is-active': nbSemainesApres === n }"
-                  @click="nbSemainesApres = nbSemainesApres === n ? 0 : n"
-                >{{ n }}</button>
-              </div>
-              <div class="stepper stepper-sm">
-                <button type="button" class="step-btn" @click="nbSemainesApres = Math.max(0, nbSemainesApres - 1)">−</button>
-                <span class="step-val">{{ nbSemainesApres }} sem</span>
-                <button type="button" class="step-btn" @click="nbSemainesApres = Math.min(52, nbSemainesApres + 1)">+</button>
-              </div>
-            </div>
-
-            <div v-if="nbSemainesApres > 0" class="weeks-summary">
-              Ce soin sera créé sur
-              <strong>{{ nbSemainesApres + 1 }} semaine(s)</strong>
-              au total (semaine actuelle incluse)
-              <span v-if="joursCopie.length > 0"> × {{ joursCopie.length + 1 }} jour(s)</span>
-            </div>
-          </div>
+        <!-- Info récurrence automatique -->
+        <div class="recurrence-info">
+          🔁 Ce soin sera automatiquement planifié sur les <strong>{{ semainesRestantesAnnee }} semaines restantes de {{ new Date(semaine?.split('-')[0]).getFullYear() }}</strong>. Tu pourras modifier ou supprimer n'importe quelle semaine individuellement.
         </div>
 
       </div>
 
       <!-- Footer -->
       <div class="modal-footer">
-        <button class="btn-cancel" @click="$emit('close')">Annuler</button>
+        <button class="btn-cancel" :disabled="isSubmitting" @click="$emit('close')">Annuler</button>
         <button
           class="btn-confirm"
-          :disabled="!selectedAS || (assignmentType === 'shared' && (!selectedAS2 || !selectedDuree1 || !selectedDuree2))"
+          :disabled="isSubmitting || !selectedAS || (assignmentType === 'shared' && (!selectedAS2 || !selectedDuree1 || !selectedDuree2))"
           @click="handleConfirm"
         >
+          <span v-if="isSubmitting">⏳ Planification en cours...</span>
+          <template v-else>
           {{ isCurrentAssigned ? 'Modifier' : 'Confirmer' }}
           <span v-if="selectedAS" class="confirm-as">{{ selectedAS }}<span v-if="assignmentType === 'shared' && selectedAS2"> + {{ selectedAS2 }}</span></span>
+          </template>
         </button>
       </div>
 
@@ -248,6 +226,17 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'confirm', 'remove'])
+const isSubmitting = ref(false)
+
+// Nombre de semaines restantes dans l'année courante à partir de la semaine affichée
+const semainesRestantesAnnee = computed(() => {
+  if (!props.semaine) return 0
+  const [y, m, d] = props.semaine.split('-').map(Number)
+  const lundi = new Date(y, m - 1, d)
+  const finAnnee = new Date(y, 11, 31)
+  const diffSemaines = Math.floor((finAnnee - lundi) / (7 * 24 * 60 * 60 * 1000))
+  return Math.max(0, diffSemaines)
+})
 
 const isCurrentAssigned = computed(() =>
   !!(props.activityActuelle?.as || props.activityActuelle?.type === 'shared')
@@ -275,7 +264,6 @@ const selectedDuree2 = ref(props.activityActuelle?.durees?.[1] ?? 15)
 const selectedMoment = ref(props.activityActuelle?.moment || (props.activite === 'coucher' ? '18-19' : 'matin'))
 const notesSoignant = ref(props.activityActuelle?.notesSoignant || '')
 const joursCopie = ref([])
-const nbSemainesApres = ref(0)
 
 const allDaysOrdered = [
   { key: 'lundi',    label: 'Lun' },
@@ -347,10 +335,11 @@ const momentOptions = computed(() => {
 
 const handleConfirm = () => {
   if (!selectedAS.value) return
+  isSubmitting.value = true
   
   const note = notesSoignant.value?.trim() || null
   const copie = [...joursCopie.value]
-  const semaines = { apres: nbSemainesApres.value }
+  const semaines = { apres: semainesRestantesAnnee.value }
   if (assignmentType.value === 'single') {
     const duree = selectedDuree.value ? parseInt(selectedDuree.value) : 30
     emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value, notesSoignant: note, joursCopie: copie, semaines })
@@ -805,58 +794,14 @@ const handleRemove = () => {
   font-style: italic;
 }
 
-/* ── Weeks repeat ───────────────────────────── */
-.weeks-repeat {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  background: var(--color-bg-secondary);
-  border-radius: 10px;
-  border: 1px solid var(--color-border-light);
-}
-
-.weeks-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.weeks-label {
+.recurrence-info {
   font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  min-width: 160px;
-}
-
-.weeks-quick {
-  display: flex;
-  gap: 4px;
-}
-
-.week-quick-btn {
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  border: 1.5px solid var(--color-border-light);
-  background: white;
-  color: var(--color-text-secondary);
-}
-
-.week-quick-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.week-quick-btn.is-active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
-
-.weeks-summary {
-  font-size: 11px;
-  color: var(--color-primary);
-  background: var(--color-primary-light);
-  padding: 5px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(37,99,235,0.2);
+  color: #065F46;
+  background: #D1FAE5;
+  border: 1px solid #6EE7B7;
+  border-radius: 8px;
+  padding: 8px 12px;
+  line-height: 1.5;
 }
 
 /* ── Comment textarea ───────────────────────── */

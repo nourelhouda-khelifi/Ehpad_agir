@@ -32,7 +32,7 @@
       <div class="charge-row">
         <span class="charge-label">Charge semaine</span>
         <span class="charge-value" :class="{ 'is-overload': as.niveau === 'surcharge' }">
-          {{ as.chargeMinutes }} min
+          {{ as.chargeMinutes }} soins
           <span v-if="as.niveau === 'surcharge'" class="warning-icon">⚠️</span>
         </span>
       </div>

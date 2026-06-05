@@ -39,11 +39,11 @@
           <ChargeBar :minutes="getChargeForPeriod(as)" />
         </div>
         <div class="charge-stats">
-          <span class="charge-minutes" :class="{ 'is-overload': getChargeForPeriod(as) >= 120 }">
-            {{ getChargeForPeriod(as) }}min
+          <span class="charge-minutes" :class="{ 'is-overload': getChargeForPeriod(as) >= 35 }">
+            {{ getChargeForPeriod(as) }} soins
           </span>
           <span class="charge-patients">· {{ props.chargeParPeriode?.nbPatients?.[as.code] ?? 0 }} pts</span>
-          <span v-if="getChargeForPeriod(as) >= 120" class="warning-icon">⚠️</span>
+          <span v-if="getChargeForPeriod(as) >= 35" class="warning-icon">⚠️</span>
         </div>
       </div>
     </div>
