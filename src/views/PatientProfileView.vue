@@ -90,58 +90,40 @@ const groupeCoucherLabel = (groupe) => {
 
 const patient = ref(null)
 const patientAlerts = ref([])
-const planningData = ref({})
+const weekExecutions = ref([])
 
-// Date de base pour les calculs
-const baseWeekStart = new Date(2026, 4, 11)
+const ACTIVITY_TO_CODE = {
+  douche: 'DOUCHE',
+  toilette: 'TOILETTE',
+  wc: 'MISE_WC',
+  coucher: 'COUCHER'
+}
 
-// Calculer la semaine actuelle
-const calculateCurrentWeek = () => {
+const getCurrentWeekMonday = () => {
   const today = new Date()
-  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
-  return 19 + Math.floor(dayDiff / 7)
+  const day = today.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diff)
+  return monday.toISOString().split('T')[0]
 }
 
-// Charger le planning depuis localStorage
-const loadPlanningData = () => {
-  try {
-    const stored = localStorage.getItem('ehpad_planning_data')
-    if (stored) {
-      planningData.value = JSON.parse(stored)
-    }
-  } catch (error) {
-    console.error('Erreur chargement planning:', error)
-  }
-}
-
-// Vérifier si le patient a une activité cette semaine
-const hasActivityThisWeek = (patientId, activityKey) => {
-  const currentWeek = calculateCurrentWeek()
-  // Les clés du localStorage sont des strings, donc convertir en string
-  const weekPlanning = planningData.value[currentWeek.toString()]
-  if (!weekPlanning) return false
-  
-  const patientPlanning = weekPlanning[patientId.toString()]
-  if (!patientPlanning) return false
-  
-  // Vérifier tous les jours
-  return Object.values(patientPlanning).some(dayActivities => {
-    if (!dayActivities) return false
-    const activity = dayActivities[activityKey]
-    // Vérifier si l'activité existe (simple ou shared)
-    return !!(activity?.as || activity?.ases?.length > 0)
-  })
+const hasActivityThisWeek = (activityKey) => {
+  const code = ACTIVITY_TO_CODE[activityKey]
+  if (!code) return false
+  return weekExecutions.value.some(exec => exec.typeSoin?.code === code)
 }
 
 // Fetch patient from API
 onMounted(async () => {
-  // Charger d'abord le planning
-  loadPlanningData()
-  
   try {
     const patientId = parseInt(route.params.id)
     patient.value = await apiClient.get(`/patients/${patientId}`)
     patientAlerts.value = await apiClient.get(`/alertes/patient/${patientId}`).catch(() => [])
+    const mondayStr = getCurrentWeekMonday()
+    weekExecutions.value = await apiClient.get(
+      `/planning/patient/${patientId}/weekly?startDate=${mondayStr}`
+    ).catch(() => [])
   } catch (error) {
     console.error('Erreur fetch patient:', error)
   }
@@ -174,7 +156,7 @@ const alertesMessages = computed(() => {
   
   // Vérifier chaque activité et créer une alerte si manquante
   activitiesToCheck.forEach(activity => {
-    const hasActivity = hasActivityThisWeek(patientId, activity.key)
+    const hasActivity = hasActivityThisWeek(activity.key)
     if (!hasActivity) {
       msgs.push(`${activity.emoji} ${activity.key.toUpperCase()}_MANQUANTE: Aucune ${activity.label.toLowerCase()} planifiée cette semaine`)
     }

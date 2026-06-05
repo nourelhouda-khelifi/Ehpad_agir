@@ -23,7 +23,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { TYPES_SOINS } from '@/data/mockSoins.js'
+import { TYPES_SOINS } from '@/constants/soinConfig.js'
 
 const props = defineProps({
   soin: { type: Object, required: true }

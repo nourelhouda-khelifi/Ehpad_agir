@@ -1,7 +1,9 @@
 <script setup>
 import { useRouter } from 'vue-router'
+import { useAuth } from '@/composables/useAuth.js'
 
 const router = useRouter()
+const { currentUser } = useAuth()
 
 defineProps({
   isOpen: {
@@ -47,8 +49,8 @@ const handleNavigation = () => {
       <div class="user-info">
         <img src="../assets/user.jpg" alt="User Avatar" class="user-avatar" />
         <div class="user-details">
-          <div class="user-name">Foulen Ben</div>
-          <div class="user-role">Infirmière</div>
+          <div class="user-name">{{ currentUser?.prenom }} {{ currentUser?.nom }}</div>
+          <div class="user-role">{{ currentUser?.role }}</div>
         </div>
       </div>
     </div>

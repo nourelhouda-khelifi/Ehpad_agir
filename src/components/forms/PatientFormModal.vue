@@ -180,7 +180,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { PATIENT_PROFILS } from '@/data/mockPatientProfils.js'
+import { PATIENT_PROFILS, COUCHER_OPTIONS } from '@/constants/patientConfig.js'
 import apiClient from '@/api/client.js'
 
 const props = defineProps({
@@ -199,11 +199,7 @@ const profilListe = computed(() =>
   Object.values(PATIENT_PROFILS).sort((a, b) => a.numero - b.numero)
 )
 
-const coucherOptions = [
-  { value: 'NON_DEFINI', icon: '—', label: 'Aucun groupe', time: '' },
-  { value: 'HELIOS', icon: '🌙', label: 'Hélios', time: '18:30 – 19:30' },
-  { value: 'GRANDE_SALLE', icon: '🍽️', label: 'Grande Salle à Manger', time: '19:30 – 20:30' },
-]
+const coucherOptions = COUCHER_OPTIONS
 
 const emptyForm = () => ({
   numeroChambre: '',

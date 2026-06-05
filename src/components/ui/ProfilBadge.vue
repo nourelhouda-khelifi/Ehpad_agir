@@ -7,7 +7,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { PATIENT_PROFILS, PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
+import { PATIENT_PROFILS, PATIENT_CATEGORIES } from '@/constants/patientConfig.js'
 
 const props = defineProps({
   profilId: { type: String, required: true }

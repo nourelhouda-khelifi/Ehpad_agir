@@ -56,16 +56,27 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 
 const props = defineProps({
-  modelValue: { type: Number, required: true },
-  baseWeekStart: { type: Date, required: true }
+  // ISO date string YYYY-MM-DD of the Monday of the selected week
+  modelValue: { type: String, required: true }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
+// Helper: returns a new Date set to the Monday of the given date's week
+const getMonday = (date) => {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const day = d.getDay()
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+  return d
+}
+
+const toISO = (d) => d.toLocaleDateString('en-CA') // YYYY-MM-DD
+
 // État interne
 const isCalendarOpen = ref(false)
 const currentMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth()))
-const selectedDate = ref(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()))
+const selectedDate = ref(new Date())
 const dropdownRef = ref(null)
 const triggerRef = ref(null)
 const dropdownStyle = ref({})
@@ -120,35 +131,24 @@ onUnmounted(() => {
   window.removeEventListener('scroll', updateDropdownPosition, true)
 })
 
-const selectedWeekNumber = computed(() => {
-  const start = new Date(props.baseWeekStart)
-  const diff = Math.floor((selectedDate.value - start) / (7 * 24 * 60 * 60 * 1000))
-  return 19 + diff
-})
+// Sync selectedDate when parent changes modelValue (e.g., "go to today" from view)
+watch(() => props.modelValue, (isoMonday) => {
+  if (!isoMonday) return
+  const [y, m, d] = isoMonday.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  selectedDate.value = date
+  currentMonth.value = new Date(y, m - 1)
+}, { immediate: true })
 
 const weekDateRange = computed(() => {
-  const start = new Date(selectedDate.value)
-  const end = new Date(selectedDate.value)
-  
-  // Trouver le lundi de cette semaine
-  const day = start.getDay()
-  const diff = start.getDate() - day + (day === 0 ? -6 : 1)
-  start.setDate(diff)
-  
-  // Dimanche
-  end.setDate(start.getDate() + 6)
-  
-  const startDay = start.getDate()
-  const endDay = end.getDate()
-  const monthName = start.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
-  
+  const monday = getMonday(selectedDate.value)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const startDay = monday.getDate()
+  const endDay = sunday.getDate()
+  const monthName = monday.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
   return `${startDay}-${endDay} ${monthName}`
 })
-
-// Mettre à jour la semaine sélectionnée
-watch(selectedWeekNumber, (week) => {
-  emit('update:modelValue', week)
-}, { immediate: true })
 
 // Noms des mois
 const monthNames = [
@@ -219,14 +219,16 @@ const isToday = (day) => {
 }
 
 const isSelectedDay = (day) => {
-  return day.date === selectedDate.value.getDate() &&
-         day.month === selectedDate.value.getMonth() &&
-         day.year === selectedDate.value.getFullYear()
+  // Highlight the whole selected week (Mon–Sun)
+  const monday = getMonday(selectedDate.value)
+  const dayDate = new Date(day.year, day.month, day.date)
+  dayDate.setHours(0, 0, 0, 0)
+  const diff = Math.round((dayDate - monday) / 86400000)
+  return diff >= 0 && diff <= 6
 }
 
 const selectDay = (day) => {
   if (day.month !== currentMonth.value.getMonth()) {
-    // Si c'est un jour d'un autre mois, changer le mois
     if (day.month < currentMonth.value.getMonth()) {
       previousMonth()
     } else {
@@ -234,8 +236,8 @@ const selectDay = (day) => {
     }
     return
   }
-  
   selectedDate.value = new Date(day.year, day.month, day.date)
+  emit('update:modelValue', toISO(getMonday(selectedDate.value)))
   isCalendarOpen.value = false
 }
 
@@ -243,6 +245,7 @@ const selectToday = () => {
   const now = new Date()
   currentMonth.value = new Date(now.getFullYear(), now.getMonth())
   selectedDate.value = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  emit('update:modelValue', toISO(getMonday(selectedDate.value)))
   isCalendarOpen.value = false
 }
 

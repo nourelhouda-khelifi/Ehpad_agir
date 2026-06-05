@@ -14,17 +14,18 @@ import { computed } from 'vue'
 
 const props = defineProps({
   minutes: { type: Number, required: true },
-  maxMinutes: { type: Number, default: 140 }
+  maxMinutes: { type: Number, default: 140 },
+  thresholdLeger: { type: Number, default: 60 },
+  thresholdNormal: { type: Number, default: 90 },
+  thresholdEleve: { type: Number, default: 120 }
 })
 
-const percentage = computed(() => {
-  return Math.min((props.minutes / props.maxMinutes) * 100, 100)
-})
+const percentage = computed(() => Math.min((props.minutes / props.maxMinutes) * 100, 100))
 
 const color = computed(() => {
-  if (props.minutes < 60) return '#1D9E75'
-  if (props.minutes < 90) return '#10B981'
-  if (props.minutes < 120) return '#F59E0B'
+  if (props.minutes < props.thresholdLeger) return '#1D9E75'
+  if (props.minutes < props.thresholdNormal) return '#10B981'
+  if (props.minutes < props.thresholdEleve) return '#F59E0B'
   return '#EF4444'
 })
 </script>

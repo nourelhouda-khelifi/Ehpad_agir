@@ -104,7 +104,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { PATIENT_CATEGORIES, PATIENT_PROFILS } from '@/data/mockPatientProfils.js'
+import { PATIENT_CATEGORIES, PATIENT_PROFILS } from '@/constants/patientConfig.js'
 
 const props = defineProps({
   patients: { type: Array, required: true },

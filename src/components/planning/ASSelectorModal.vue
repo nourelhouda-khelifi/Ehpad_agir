@@ -175,7 +175,7 @@ import ASBadge from '@/components/ui/ASBadge.vue'
 const props = defineProps({
   patientNom: { type: String, required: true },
   jour: { type: String, required: true },
-  semaine: { type: Number, default: 19 },
+  semaine: { type: String, default: '' }, // ISO date YYYY-MM-DD of the week's Monday
   asActuel: { type: String, default: null },
   activite: { type: String, default: 'douche' },
   dureeActuelle: { type: Number, default: 30 },
@@ -195,40 +195,16 @@ const selectedMoment = ref(props.momentActuel || (props.activite === 'coucher' ?
 const assignmentType = ref('single')
 
 const jourLabel = computed(() => {
-  // Calculer la date dynamiquement basée sur la semaine
-  // semaine 19 = May 11 (lundi)
-  // semaine 20 = May 18 (lundi)
-  // semaine 21 = May 25 (lundi)
-  const baseDate = new Date(2026, 4, 11) // May 11, 2026 (semaine 19, lundi)
-  const weekOffset = props.semaine - 19
-  const jourIndex = {
-    lundi: 0,
-    mardi: 1,
-    mercredi: 2,
-    jeudi: 3,
-    vendredi: 4,
-    samedi: 5,
-    dimanche: 6
-  }[props.jour] ?? 0
-  
-  const date = new Date(baseDate)
-  date.setDate(baseDate.getDate() + (weekOffset * 7) + jourIndex)
-  
-  const jours = {
-    lundi: 'Lundi',
-    mardi: 'Mardi',
-    mercredi: 'Mercredi',
-    jeudi: 'Jeudi',
-    vendredi: 'Vendredi',
-    samedi: 'Samedi',
-    dimanche: 'Dimanche'
-  }
-  const dayName = jours[props.jour] || props.jour
-  const dayNumber = date.getDate()
+  const jourIndex = { lundi: 0, mardi: 1, mercredi: 2, jeudi: 3, vendredi: 4, samedi: 5, dimanche: 6 }[props.jour] ?? 0
+  const jourNames = { lundi: 'Lundi', mardi: 'Mardi', mercredi: 'Mercredi', jeudi: 'Jeudi', vendredi: 'Vendredi', samedi: 'Samedi', dimanche: 'Dimanche' }
+  const dayName = jourNames[props.jour] || props.jour
+
+  if (!props.semaine) return dayName
+
+  const [y, m, d] = props.semaine.split('-').map(Number)
+  const date = new Date(y, m - 1, d + jourIndex)
   const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-  const monthName = months[date.getMonth()]
-  
-  return `${dayName} ${dayNumber} ${monthName}`
+  return `${dayName} ${date.getDate()} ${months[date.getMonth()]}`
 })
 
 const activiteLabel = computed(() => {

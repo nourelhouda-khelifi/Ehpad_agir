@@ -64,17 +64,9 @@ const niveauColors = {
 
 const niveauColor = computed(() => niveauColors[props.as.niveau] || '#888780')
 
-const headerStyle = computed(() => {
-  const colors = {
-    SE1: { bg: '#1D9E75' },
-    SE2: { bg: '#A32D2D' },
-    SC1: { bg: '#185FA5' },
-    SC2: { bg: '#5DCAA5' },
-    SG: { bg: '#888780' }
-  }
-  const color = colors[props.as.code] || { bg: '#888780' }
-  return { background: color.bg }
-})
+const headerStyle = computed(() => ({
+  background: props.as.color || '#888780'
+}))
 </script>
 
 <style scoped>

@@ -8,8 +8,7 @@
       </div>
       <div class="page-actions">
         <CalendarWeekSelector
-          v-model="currentWeek"
-          :base-week-start="baseWeekStart"
+          v-model="currentWeekMonday"
         />
       </div>
     </div>
@@ -187,38 +186,44 @@ const patients = ref([])
 const aidesSoignants = ref([])
 const typeSoinIdToActivity = ref({})
 
-// Gestion des semaines
-const baseWeekStart = new Date(2026, 4, 11)
+// Gestion des semaines via date ISO Monday
 const planningByWeek = ref({})
+const loadedWeeks = new Set()
 
-// Calculer la semaine actuelle basée sur la date d'aujourd'hui
-const calculateCurrentWeek = () => {
+const getCurrentWeekMonday = () => {
   const today = new Date()
-  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
-  return 19 + Math.floor(dayDiff / 7)
+  const day = today.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diff)
+  return monday.toISOString().split('T')[0]
 }
 
-const currentWeek = ref(calculateCurrentWeek())
+const toISO = (date) => date.toISOString().split('T')[0]
 
-watch(currentWeek, (week) => {
-  if (!planningByWeek.value[week]) planningByWeek.value[week] = {}
-}, { immediate: true })
+const currentWeekMonday = ref(getCurrentWeekMonday())
 
-const currentPlanning = computed(() => planningByWeek.value[currentWeek.value])
+watch(currentWeekMonday, (monday) => {
+  if (!planningByWeek.value[monday]) planningByWeek.value[monday] = {}
+  loadWeekExecutions(monday)
+}, { immediate: false })
+
+const currentPlanning = computed(() => planningByWeek.value[currentWeekMonday.value] || {})
 
 const weekLabel = computed(() => {
-  const start = new Date(baseWeekStart)
-  start.setDate(baseWeekStart.getDate() + (currentWeek.value - 19) * 7)
-  const end = new Date(start)
-  end.setDate(start.getDate() + 6)
-  return `Semaine ${currentWeek.value} du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+  const [y, m, d] = currentWeekMonday.value.split('-').map(Number)
+  const start = new Date(y, m - 1, d)
+  const end = new Date(y, m - 1, d + 6)
+  const startOfYear = new Date(y, 0, 1)
+  const weekNum = Math.ceil((((start - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7)
+  return `Semaine ${weekNum} · Du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
 })
 
 const datesOfWeek = computed(() => {
+  const [y, m, d] = currentWeekMonday.value.split('-').map(Number)
   const dates = {}
   joursSemaine.forEach((jour, index) => {
-    const date = new Date(baseWeekStart)
-    date.setDate(baseWeekStart.getDate() + index + (currentWeek.value - 19) * 7)
+    const date = new Date(y, m - 1, d + index)
     dates[jour] = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
   })
   return dates
@@ -246,47 +251,63 @@ onMounted(async () => {
     patients.value = await apiClient.get('/patients')
   } catch (e) { console.error('Erreur patients:', e) }
 
-  try {
-    const executions = await apiClient.get('/executions')
-    executions.forEach(execution => {
-      const execDate = new Date(execution.dateExecution + 'T00:00:00')
-      const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-      if (dayDiff < 0) return
-      const week = 19 + Math.floor(dayDiff / 7)
-      const dayOfWeek = dayDiff % 7
-      if (dayOfWeek < 0 || dayOfWeek > 6) return
-
-      const activity = typeSoinIdToActivity.value[execution.typeSoinId]
-      if (!activity) return
-
-      const hour = parseInt(execution.heureExecution?.split(':')[0] || '8')
-      let moment = 'matin'
-      if (hour >= 19) moment = '19-20'
-      else if (hour >= 18) moment = '18-19'
-      else if (hour >= 14) moment = 'soir'
-
-      const patientId = execution.patientId
-      const jour = joursSemaine[dayOfWeek]
-      const duree = parseInt(execution.commentaire?.match(/Dur[ée]+: (\d+)/)?.[1] || '30')
-
-      if (!planningByWeek.value[week]) planningByWeek.value[week] = {}
-      if (!planningByWeek.value[week][patientId]) planningByWeek.value[week][patientId] = {}
-      if (!planningByWeek.value[week][patientId][jour]) planningByWeek.value[week][patientId][jour] = {}
-
-      const existing = planningByWeek.value[week][patientId][jour][activity]
-      const asCode = execution.aideSoignant?.code
-
-      if (existing?._execId && asCode && existing.as !== asCode) {
-        planningByWeek.value[week][patientId][jour][activity] = {
-          type: 'shared', ases: [existing.as, asCode], durees: [existing.duree || 30, duree],
-          moment: existing.moment || moment, _execIds: [existing._execId, execution.id]
-        }
-      } else if (!existing) {
-        planningByWeek.value[week][patientId][jour][activity] = { as: asCode, duree, moment, _execId: execution.id }
-      }
-    })
-  } catch (e) { console.error('Erreur executions:', e) }
+  await loadWeekExecutions(currentWeekMonday.value)
 })
+
+const buildPlanningFromExecutions = (executions, mondayStr) => {
+  if (!planningByWeek.value[mondayStr]) planningByWeek.value[mondayStr] = {}
+  const [y, m, d] = mondayStr.split('-').map(Number)
+  const mondayDate = new Date(y, m - 1, d)
+
+  executions.forEach(execution => {
+    const execDate = new Date(execution.dateExecution + 'T00:00:00')
+    const dayDiff = Math.round((execDate - mondayDate) / (24 * 60 * 60 * 1000))
+    if (dayDiff < 0 || dayDiff > 6) return
+
+    const activity = typeSoinIdToActivity.value[execution.typeSoinId]
+    if (!activity) return
+
+    const hour = parseInt(execution.heureExecution?.split(':')[0] || '8')
+    let moment = 'matin'
+    if (hour >= 19) moment = '19-20'
+    else if (hour >= 18) moment = '18-19'
+    else if (hour >= 14) moment = 'soir'
+
+    const patientId = execution.patientId
+    const jour = joursSemaine[dayDiff]
+    const duree = parseInt(execution.commentaire?.match(/Dur[ée]+: (\d+)/)?.[1] || '30')
+
+    if (!planningByWeek.value[mondayStr][patientId]) planningByWeek.value[mondayStr][patientId] = {}
+    if (!planningByWeek.value[mondayStr][patientId][jour]) planningByWeek.value[mondayStr][patientId][jour] = {}
+
+    const existing = planningByWeek.value[mondayStr][patientId][jour][activity]
+    const asCode = execution.aideSoignant?.code
+
+    if (existing?._execId && asCode && existing.as !== asCode) {
+      planningByWeek.value[mondayStr][patientId][jour][activity] = {
+        type: 'shared', ases: [existing.as, asCode], durees: [existing.duree || 30, duree],
+        moment: existing.moment || moment, _execIds: [existing._execId, execution.id]
+      }
+    } else if (!existing) {
+      planningByWeek.value[mondayStr][patientId][jour][activity] = { as: asCode, duree, moment, _execId: execution.id }
+    }
+  })
+}
+
+const loadWeekExecutions = async (mondayStr) => {
+  if (loadedWeeks.has(mondayStr)) return
+  loadedWeeks.add(mondayStr)
+  if (!planningByWeek.value[mondayStr]) planningByWeek.value[mondayStr] = {}
+  const [y, m, d] = mondayStr.split('-').map(Number)
+  const endDate = toISO(new Date(y, m - 1, d + 6))
+  try {
+    const executions = await apiClient.get(`/executions/range?startDate=${mondayStr}&endDate=${endDate}`)
+    buildPlanningFromExecutions(executions, mondayStr)
+  } catch (e) {
+    loadedWeeks.delete(mondayStr)
+    console.error('Erreur chargement semaine:', e)
+  }
+}
 
 // Référence pour capturer le planning
 const planningRef = ref(null)
@@ -492,7 +513,7 @@ const downloadPDF = async () => {
     }
 
     const toiletteRows = []
-    const week = currentWeek.value
+    const week = currentWeekMonday.value
 
     patients.value.forEach(patient => {
       const toiletteDays = []
@@ -636,7 +657,7 @@ const downloadPDF = async () => {
     }
 
     // Télécharger
-    doc.save(`Planning_${filterAS.value}_S${currentWeek.value}.pdf`)
+    doc.save(`Planning_${filterAS.value}_${currentWeekMonday.value}.pdf`)
   } catch (error) {
     console.error('Erreur lors de la génération du PDF:', error)
     alert('Erreur lors de la génération du PDF: ' + error.message)

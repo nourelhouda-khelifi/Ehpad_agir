@@ -114,6 +114,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAidesSoignants } from '@/composables/useAidesSoignants.js'
 import apiClient from '@/api/client.js'
 import { useAideSoignantCharge } from '@/composables/useAideSoignantCharge.js'
+import { getCurrentWeekMonday, getISOWeekNumber, getDayIndexInCurrentWeek } from '@/utils/dateUtils.js'
 
 import ASCard from '@/components/aides/ASCard.vue'
 import ChargeHeatmap from '@/components/aides/ChargeHeatmap.vue'
@@ -122,8 +123,7 @@ import AddAideSoignantModal from '@/components/forms/AddAideSoignantModal.vue'
 import GererAbsencesModal from '@/components/GererAbsencesModal.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 
-// Date de base pour le calcul des semaines
-const baseWeekStart = new Date(2026, 4, 11)
+const currentMondayStr = getCurrentWeekMonday()
 
 // Composable pour charger les aides-soignants depuis l'API
 const { aidesSoignants, loadAidesSoignants, deleteAideSoignant } = useAidesSoignants()
@@ -146,14 +146,7 @@ const loading = ref(false)
 const executions = ref([])
 const asAlerts = ref([])
 
-// Calculer la semaine actuelle
-const calculateCurrentWeek = () => {
-  const today = new Date()
-  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
-  return 19 + Math.floor(dayDiff / 7)
-}
-
-const currentWeek = ref(calculateCurrentWeek())
+const currentWeek = ref(getISOWeekNumber())
 
 /**
  * Formater une date pour l'affichage
@@ -194,18 +187,14 @@ const getExecDuree = (execution) => {
 
 // Filtre les exécutions d'un AS pour la semaine donnée,
 // EN DÉDUPLIQUANT par (patientId + jour + typeSoinId) — même logique que la page Activités.
-const getDeduplicatedExecs = (execs, asCode, week) => {
+const getDeduplicatedExecs = (execs, asCode) => {
   const seen = new Set()
   const result = []
   execs.forEach(exec => {
     if (exec.aideSoignant?.code !== asCode) return
-    const execDate = new Date(exec.dateExecution + 'T00:00:00')
-    const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-    if (dayDiff < 0) return
-    const execWeek = 19 + Math.floor(dayDiff / 7)
-    if (execWeek !== week) return
-    // Clé de déduplication : même patient + même jour + même type de soin
-    const key = `${exec.patientId}_${dayDiff % 7}_${exec.typeSoinId}`
+    const dayDiff = getDayIndexInCurrentWeek(exec.dateExecution, currentMondayStr)
+    if (dayDiff === -1) return
+    const key = `${exec.patientId}_${dayDiff}_${exec.typeSoinId}`
     if (seen.has(key)) return
     seen.add(key)
     result.push({ exec, dayDiff })
@@ -214,10 +203,10 @@ const getDeduplicatedExecs = (execs, asCode, week) => {
 }
 
 // Charge totale par jour (pour heatmap "Par jour")
-const calculateChargeParJourFromExecutions = (execs, asCode, week) => {
+const calculateChargeParJourFromExecutions = (execs, asCode) => {
   const chargeByDay = {}
   joursSemaineKeys.forEach(d => { chargeByDay[d] = 0 })
-  getDeduplicatedExecs(execs, asCode, week).forEach(({ exec, dayDiff }) => {
+  getDeduplicatedExecs(execs, asCode).forEach(({ exec, dayDiff }) => {
     const day = joursSemaineKeys[dayDiff % 7]
     chargeByDay[day] = (chargeByDay[day] || 0) + getExecDuree(exec)
   })
@@ -225,10 +214,10 @@ const calculateChargeParJourFromExecutions = (execs, asCode, week) => {
 }
 
 // Charge séparée matin/soir par jour (pour heatmap "Matin" et "Soir")
-const calculateChargeParPeriodeFromExecutions = (execs, asCode, week) => {
+const calculateChargeParPeriodeFromExecutions = (execs, asCode) => {
   const chargeByDay = {}
   joursSemaineKeys.forEach(d => { chargeByDay[d] = { matin: 0, soir: 0 } })
-  getDeduplicatedExecs(execs, asCode, week).forEach(({ exec, dayDiff }) => {
+  getDeduplicatedExecs(execs, asCode).forEach(({ exec, dayDiff }) => {
     const day = joursSemaineKeys[dayDiff % 7]
     const hour = parseInt(exec.heureExecution?.split(':')[0] || '8')
     const periode = hour >= 14 ? 'soir' : 'matin'
@@ -245,8 +234,8 @@ const loadAllAidesSoignantCharges = async () => {
     const allCharges = {}
     const allChargesPeriode = {}
     aidesSoignants.value.forEach(as => {
-      allCharges[as.code] = calculateChargeParJourFromExecutions(executions.value, as.code, currentWeek.value)
-      allChargesPeriode[as.code] = calculateChargeParPeriodeFromExecutions(executions.value, as.code, currentWeek.value)
+      allCharges[as.code] = calculateChargeParJourFromExecutions(executions.value, as.code)
+      allChargesPeriode[as.code] = calculateChargeParPeriodeFromExecutions(executions.value, as.code)
     })
 
     chargeJour.value = allCharges

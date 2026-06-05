@@ -29,7 +29,7 @@ import PatientAvatar from '@/components/ui/PatientAvatar.vue'
 import CategoryBadge from '@/components/ui/CategoryBadge.vue'
 import ProfilBadge from '@/components/ui/ProfilBadge.vue'
 import PriorityBadge from '@/components/ui/PriorityBadge.vue'
-import { PATIENT_CATEGORIES, PATIENT_PROFILS } from '@/data/mockPatientProfils.js'
+import { PATIENT_CATEGORIES, PATIENT_PROFILS } from '@/constants/patientConfig.js'
 
 const props = defineProps({
   patient: { type: Object, required: true }

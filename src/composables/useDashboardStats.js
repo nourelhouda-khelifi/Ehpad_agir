@@ -8,6 +8,7 @@ import { patientAlertService } from '../api/services/patientAlertService.js'
 import { executionSoinService } from '../api/services/executionSoinService.js'
 import { aideSoignantService } from '../api/services/aideSoignantService.js'
 import { typeSoinService } from '../api/services/typeSoinService.js'
+import { getCurrentWeekMonday, getISOWeekNumber, getDayIndexInCurrentWeek } from '../utils/dateUtils.js'
 
 export const useDashboardStats = () => {
   const patients = ref([])
@@ -19,17 +20,7 @@ export const useDashboardStats = () => {
   const loading = ref(false)
   const error = ref(null)
 
-  // Date de base pour le calcul des semaines
-  const baseWeekStart = new Date(2026, 4, 11)
-
-  /**
-   * Calculer la semaine actuelle
-   */
-  const getCurrentWeek = () => {
-    const today = new Date()
-    const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
-    return 19 + Math.floor(dayDiff / 7)
-  }
+  const currentMondayStr = getCurrentWeekMonday()
 
   /**
    * Charger tous les patients
@@ -102,27 +93,16 @@ export const useDashboardStats = () => {
   const loadWeeklyCharge = () => {
     const chargeData = {}
     const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
-    const currentWeek = getCurrentWeek()
 
     aidesSoignants.value.forEach(as => {
       const chargeByDay = {}
-      days.forEach(day => {
-        chargeByDay[day] = 0
-      })
+      days.forEach(day => { chargeByDay[day] = 0 })
 
-      // Filtrer les ExecutionSoins pour cet AS et cette semaine
       executions.value.forEach(exec => {
         if (exec.aideSoignant?.code !== as.code) return
-
-        const execDate = new Date(exec.dateExecution + 'T00:00:00')
-        const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-        const execWeek = 19 + Math.floor(dayDiff / 7)
-        
-        if (execWeek !== currentWeek) return
-
-        const dayOfWeek = dayDiff % 7
-        const day = days[dayOfWeek]
-        chargeByDay[day] = (chargeByDay[day] || 0) + 30
+        const dayIndex = getDayIndexInCurrentWeek(exec.dateExecution, currentMondayStr)
+        if (dayIndex === -1) return
+        chargeByDay[days[dayIndex]] = (chargeByDay[days[dayIndex]] || 0) + 30
       })
 
       chargeData[as.code] = chargeByDay
@@ -159,27 +139,15 @@ export const useDashboardStats = () => {
   const stats = computed(() => {
     const totalPatients = patients.value.length
     const alertesActives = alertes.value.filter(a => !a.resolue).length
-    const currentWeek = getCurrentWeek()
-    const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 
-    // Récupérer les exécutions pour aujourd'hui
     const today = new Date().toISOString().split('T')[0]
-    const todayExecutions = executions.value.filter(e => e.dateExecution === today)
-    const soinsAujourdhui = todayExecutions.length
+    const soinsAujourdhui = executions.value.filter(e => e.dateExecution === today).length
 
-    // Compter les patients sans douche pour la semaine actuelle
     const patientIdsWithDouche = new Set()
     executions.value.forEach(exec => {
-      const execDate = new Date(exec.dateExecution + 'T00:00:00')
-      const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-      const execWeek = 19 + Math.floor(dayDiff / 7)
-      
-      if (execWeek !== currentWeek) return
-      
+      if (getDayIndexInCurrentWeek(exec.dateExecution, currentMondayStr) === -1) return
       const typeSoin = typesSoin.value.find(t => t.id === exec.typeSoinId)
-      if (typeSoin && typeSoin.code === 'DOUCHE') {
-        patientIdsWithDouche.add(exec.patientId)
-      }
+      if (typeSoin && typeSoin.code === 'DOUCHE') patientIdsWithDouche.add(exec.patientId)
     })
     const sansDouche = patients.value.filter(p => !patientIdsWithDouche.has(p.id)).length
 
@@ -242,7 +210,6 @@ export const useDashboardStats = () => {
    * Charge par aide-soignant et par période pour la semaine actuelle
    */
   const chargeAidesSoignants = computed(() => {
-    const currentWeek = getCurrentWeek()
     const charges = {
       toute: {},
       matin: {},
@@ -256,14 +223,7 @@ export const useDashboardStats = () => {
 
       const asExecutions = executions.value.filter(e => {
         if (e.aideSoignant?.code !== as.code) return false
-        
-        // Calculer la semaine de l'exécution
-        const execDate = new Date(e.dateExecution + 'T00:00:00')
-        const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-        const execWeek = 19 + Math.floor(dayDiff / 7)
-        
-        if (execWeek !== currentWeek) return false
-        return true
+        return getDayIndexInCurrentWeek(e.dateExecution, currentMondayStr) !== -1
       })
 
       asExecutions.forEach(e => {
@@ -295,30 +255,15 @@ export const useDashboardStats = () => {
     const daysShort = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
     const daysLong = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
     
-    const colors = {
-      SE1: '#97C459',
-      SE2: '#E24B4A',
-      SC1: '#378ADD',
-      SC2: '#5DCAA5',
-      SG: '#888780'
-    }
-
-    // Créer les séries avec les jours longs du weeklyChargeData
     const series = aidesSoignants.value.map(as => ({
       code: as.code,
-      color: colors[as.code] || '#888780',
+      color: as.color || '#888780',
       values: daysLong.map(day => weeklyChargeData.value[as.code]?.[day] || 0)
     }))
 
     return {
       jours: daysShort,
-      data: series.length > 0 ? series : [
-        { code: 'SE1', color: colors.SE1, values: [0, 0, 0, 0, 0, 0, 0] },
-        { code: 'SE2', color: colors.SE2, values: [0, 0, 0, 0, 0, 0, 0] },
-        { code: 'SC1', color: colors.SC1, values: [0, 0, 0, 0, 0, 0, 0] },
-        { code: 'SC2', color: colors.SC2, values: [0, 0, 0, 0, 0, 0, 0] },
-        { code: 'SG', color: colors.SG, values: [0, 0, 0, 0, 0, 0, 0] }
-      ]
+      data: series
     }
   })
 

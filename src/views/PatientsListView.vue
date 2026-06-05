@@ -45,11 +45,7 @@
       </select>
       <select v-model="filterAS" class="filter-select">
         <option value="">Tous les AS</option>
-        <option value="SE1">SE1</option>
-        <option value="SE2">SE2</option>
-        <option value="SC1">SC1</option>
-        <option value="SC2">SC2</option>
-        <option value="SG">SG</option>
+        <option v-for="as in aidesSoignants" :key="as.id" :value="as.code">{{ as.code }}</option>
       </select>
       <select v-model="filterCategorie" class="filter-select">
         <option value="">Toutes catégories</option>
@@ -113,10 +109,10 @@ import PatientsTable from '@/components/patients/PatientsTable.vue'
 import Pagination from '@/components/ui/Pagination.vue'
 import PatientFormModal from '@/components/forms/PatientFormModal.vue'
 
-import { mockPatients } from '@/data/mockPatients.js'
-import { PATIENT_PROFILS, PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
+import { PATIENT_PROFILS, PATIENT_CATEGORIES } from '@/constants/patientConfig.js'
 import { usePatients } from '@/composables/usePatients'
 import { patientService } from '@/api/services/patientService.js'
+import { aideSoignantService } from '@/api/services/aideSoignantService.js'
 import apiClient from '@/api/client.js'
 
 const router = useRouter()
@@ -128,9 +124,11 @@ const { patients, loading, error, loadPatients } = usePatients()
 const showFormModal = ref(false)
 const editingPatient = ref(null)
 
-// Charger au montage
-onMounted(() => {
+const aidesSoignants = ref([])
+
+onMounted(async () => {
   loadPatients()
+  aidesSoignants.value = await aideSoignantService.getAll().catch(() => [])
 })
 
 // Filtres

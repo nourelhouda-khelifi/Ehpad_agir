@@ -1,5 +1,4 @@
 import { computed } from 'vue'
-import { DUREE_DOUCHE } from '@/data/mockPlanning.js'
 
 export function useCharge(planning, aidesSoignants) {
   const calculerChargeAS = (codeAS, planningData) => {

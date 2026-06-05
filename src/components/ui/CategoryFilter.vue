@@ -27,7 +27,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
+import { PATIENT_CATEGORIES } from '@/constants/patientConfig.js'
 
 defineProps({
   modelValue: { type: String, default: null }

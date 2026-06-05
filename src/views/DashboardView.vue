@@ -158,17 +158,8 @@ import { useDashboardStats } from '@/composables/useDashboardStats.js'
 const router = useRouter()
 const { patients, alertes, aidesSoignants, stats: dashboardStats, alertesCritiques, repartitionSoins, chargeAidesSoignants, chargeASParSemaine, loadDashboardData, loading } = useDashboardStats()
 
-// Date de base pour le calcul des semaines
-const baseWeekStart = new Date(2026, 4, 11)
-
-// Calculer la semaine actuelle
-const calculateCurrentWeek = () => {
-  const today = new Date()
-  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
-  return 19 + Math.floor(dayDiff / 7)
-}
-
-const currentWeek = ref(calculateCurrentWeek())
+import { getISOWeekNumber } from '@/utils/dateUtils.js'
+const currentWeek = ref(getISOWeekNumber())
 
 // Charger les données au montage
 onMounted(() => {

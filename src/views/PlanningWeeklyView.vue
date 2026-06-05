@@ -6,10 +6,7 @@
         <p class="page-subtitle">{{ weekLabel }}</p>
       </div>
       <div class="page-actions">
-        <CalendarWeekSelector
-          v-model="currentWeek"
-          :base-week-start="baseWeekStart"
-        />
+        <CalendarWeekSelector v-model="currentWeekMonday" />
         
       </div>
     </div>
@@ -171,7 +168,7 @@
       v-if="modalOpen && modalPatient"
       :patient-nom="formatName(modalPatient)"
       :jour="modalJour"
-      :semaine="currentWeek"
+      :semaine="currentWeekMonday"
       :activite="selectedActivity"
       :as-actuel="currentPlanning?.[modalPatient.id]?.[modalJour]?.[selectedActivity]?.as"
       :duree-actuelle="currentPlanning?.[modalPatient.id]?.[modalJour]?.[selectedActivity]?.duree || (selectedActivity === 'douche' ? 30 : null)"
@@ -193,7 +190,7 @@ import ChargeBar from '@/components/ui/ChargeBar.vue'
 import CalendarWeekSelector from '@/components/ui/CalendarWeekSelector.vue'
 import PlanningCell from '@/components/planning/PlanningCell.vue'
 import ASSelectorModal from '@/components/planning/ASSelectorModal.vue'
-import { PATIENT_CATEGORIES } from '@/data/mockPatientProfils.js'
+import { PATIENT_CATEGORIES } from '@/constants/patientConfig.js'
 import { useCharge } from '@/composables/useCharge.js'
 import apiClient from '@/api/client.js'
 
@@ -214,16 +211,24 @@ const aidesSoignants = ref([])
 const planningByWeek = ref({})
 const activityToTypeSoinId = ref({}) // { douche: 2, toilette: 1, ... }
 const typeSoinIdToActivity = ref({}) // { 2: 'douche', ... }
+const loadedWeeks = new Set() // cache des semaines déjà chargées
 
-// Calculer la semaine actuelle basée sur la date d'aujourd'hui
-const baseWeekStart = new Date(2026, 4, 11)
-const calculateCurrentWeek = () => {
-  const today = new Date()
-  const dayDiff = Math.floor((today - baseWeekStart) / (24 * 60 * 60 * 1000))
-  return 19 + Math.floor(dayDiff / 7)
+// ─── Helpers dates ──────────────────────────────────────────────────────────
+
+const toISO = (d) => d.toLocaleDateString('en-CA') // → YYYY-MM-DD
+
+const getISOMonday = (date = new Date()) => {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const day = d.getDay()
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+  return toISO(d)
 }
 
-const currentWeek = ref(calculateCurrentWeek())
+// Semaine courante = ISO date du lundi
+const currentWeekMonday = ref(getISOMonday())
+// Clé d'accès dans planningByWeek (= currentWeekMonday)
+const weekKey = computed(() => currentWeekMonday.value)
 const filterEtage = ref('all')
 const filterAS = ref('all')
 const filterSansDouche = ref(false)
@@ -249,44 +254,44 @@ const coucherTab = ref('HELIOS') // 'HELIOS' | 'GRANDE_SALLE'
 
 const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 const jours = computed(() => {
-  const today = new Date()
-  return joursSemaine.map((key, index) => {
-    const date = new Date(baseWeekStart)
-    date.setDate(baseWeekStart.getDate() + index + (currentWeek.value - 19) * 7)
-
+  const [y, m, d] = currentWeekMonday.value.split('-').map(Number)
+  const monday = new Date(y, m - 1, d)
+  const todayISO = toISO(new Date())
+  return joursSemaine.map((key, i) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + i)
     return {
       key,
       short: date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''),
       date: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-      isToday: date.toDateString() === today.toDateString()
+      isToday: toISO(date) === todayISO
     }
   })
 })
 
-const asColorMap = { SE1: '#1D9E75', SE2: '#E24B4A', SC1: '#378ADD', SC2: '#5DCAA5', CH: '#F59E0B', SG: '#888780' }
-const getASColor = (code) => asColorMap[code] || '#6B7280'
+const getASColor = (code) => aidesSoignants.value.find(a => a.code === code)?.color || '#6B7280'
 
 const countGroupeCoucher = (groupe) =>
   patients.value.filter(p => p.groupeCoucher === groupe).length
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-const ensureWeek = (week) => {
-  if (!planningByWeek.value[week]) planningByWeek.value[week] = {}
+const ensureWeek = (key) => {
+  if (!planningByWeek.value[key]) planningByWeek.value[key] = {}
 }
-
-watch(currentWeek, (week) => ensureWeek(week), { immediate: true })
 
 // ─── Chargement API ─────────────────────────────────────────────────────────
 
-const buildPlanningFromExecutions = (executions) => {
+const buildPlanningFromExecutions = (executions, mondayStr) => {
+  const [y, m, d] = mondayStr.split('-').map(Number)
+  const monday = new Date(y, m - 1, d)
+  monday.setHours(0, 0, 0, 0)
+
   executions.forEach(execution => {
     const execDate = new Date(execution.dateExecution + 'T00:00:00')
-    const dayDiff = Math.floor((execDate - baseWeekStart) / (24 * 60 * 60 * 1000))
-    if (dayDiff < 0) return
-    const week = 19 + Math.floor(dayDiff / 7)
-    const dayOfWeek = dayDiff % 7
-    if (dayOfWeek < 0 || dayOfWeek > 6) return
+    execDate.setHours(0, 0, 0, 0)
+    const dayDiff = Math.round((execDate - monday) / (24 * 60 * 60 * 1000))
+    if (dayDiff < 0 || dayDiff > 6) return
 
     const activity = typeSoinIdToActivity.value[execution.typeSoinId]
     if (!activity) return
@@ -298,19 +303,17 @@ const buildPlanningFromExecutions = (executions) => {
     else if (hour >= 14) moment = 'soir'
 
     const patientId = execution.patientId
-    const jour = joursSemaine[dayOfWeek]
+    const jour = joursSemaine[dayDiff]
     const duree = parseInt(execution.commentaire?.match(/Dur[ée]+: (\d+)/)?.[1] || '30')
 
-    ensureWeek(week)
-    if (!planningByWeek.value[week][patientId]) planningByWeek.value[week][patientId] = {}
-    if (!planningByWeek.value[week][patientId][jour]) planningByWeek.value[week][patientId][jour] = {}
+    if (!planningByWeek.value[mondayStr][patientId]) planningByWeek.value[mondayStr][patientId] = {}
+    if (!planningByWeek.value[mondayStr][patientId][jour]) planningByWeek.value[mondayStr][patientId][jour] = {}
 
-    const existing = planningByWeek.value[week][patientId][jour][activity]
+    const existing = planningByWeek.value[mondayStr][patientId][jour][activity]
     const asCode = execution.aideSoignant?.code
 
     if (existing?._execId && asCode && existing.as !== asCode) {
-      // Transformer en partagé
-      planningByWeek.value[week][patientId][jour][activity] = {
+      planningByWeek.value[mondayStr][patientId][jour][activity] = {
         type: 'shared',
         ases: [existing.as, asCode],
         durees: [existing.duree || 30, duree],
@@ -318,11 +321,28 @@ const buildPlanningFromExecutions = (executions) => {
         _execIds: [existing._execId, execution.id]
       }
     } else if (!existing) {
-      planningByWeek.value[week][patientId][jour][activity] = {
+      planningByWeek.value[mondayStr][patientId][jour][activity] = {
         as: asCode, duree, moment, _execId: execution.id
       }
     }
   })
+}
+
+const loadWeekExecutions = async (mondayStr) => {
+  if (loadedWeeks.has(mondayStr)) return
+  loadedWeeks.add(mondayStr)
+  ensureWeek(mondayStr)
+
+  const [y, m, d] = mondayStr.split('-').map(Number)
+  const endDate = toISO(new Date(y, m - 1, d + 6))
+
+  try {
+    const executions = await apiClient.get(`/executions/range?startDate=${mondayStr}&endDate=${endDate}`)
+    buildPlanningFromExecutions(executions, mondayStr)
+  } catch (e) {
+    loadedWeeks.delete(mondayStr) // allow retry on error
+    console.error('Erreur chargement semaine:', e)
+  }
 }
 
 onMounted(async () => {
@@ -346,22 +366,26 @@ onMounted(async () => {
     patients.value = await apiClient.get('/patients')
   } catch (e) { console.error('Erreur patients:', e) }
 
-  try {
-    const executions = await apiClient.get('/executions')
-    buildPlanningFromExecutions(executions)
-  } catch (e) { console.error('Erreur executions:', e) }
+  await loadWeekExecutions(currentWeekMonday.value)
 })
 
-const currentPlanning = computed(() => planningByWeek.value[currentWeek.value])
+// Recharger les exécutions quand on change de semaine
+watch(currentWeekMonday, (newMonday) => {
+  loadWeekExecutions(newMonday)
+})
+
+const currentPlanning = computed(() => planningByWeek.value[weekKey.value])
 const { aidesSoignantsAvecCharge, recommanderAS } = useCharge(currentPlanning, aidesSoignants)
 const aidesCodes = computed(() => aidesSoignants.value.map((as) => as.code))
 
 const weekLabel = computed(() => {
-  const start = new Date(baseWeekStart)
-  start.setDate(baseWeekStart.getDate() + (currentWeek.value - 19) * 7)
-  const end = new Date(start)
-  end.setDate(start.getDate() + 6)
-  return `Semaine ${currentWeek.value} · Du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+  const [y, m, d] = currentWeekMonday.value.split('-').map(Number)
+  const start = new Date(y, m - 1, d)
+  const end = new Date(y, m - 1, d + 6)
+  // ISO week number
+  const startOfYear = new Date(y, 0, 1)
+  const weekNum = Math.ceil((((start - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7)
+  return `Semaine ${weekNum} · Du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
 })
 
 const formatName = (patient) => {
@@ -462,15 +486,17 @@ const patientsFiltres = computed(() => {
 })
 
 const previousWeek = () => {
-  currentWeek.value -= 1
+  const [y, m, d] = currentWeekMonday.value.split('-').map(Number)
+  currentWeekMonday.value = toISO(new Date(y, m - 1, d - 7))
 }
 
 const nextWeek = () => {
-  currentWeek.value += 1
+  const [y, m, d] = currentWeekMonday.value.split('-').map(Number)
+  currentWeekMonday.value = toISO(new Date(y, m - 1, d + 7))
 }
 
 const goToCurrentWeek = () => {
-  currentWeek.value = 19
+  currentWeekMonday.value = getISOMonday()
 }
 
 const openModal = (patient, jour) => {
@@ -496,9 +522,8 @@ const getAideSoignantId = (code) => aidesSoignants.value.find(a => a.code === co
 
 const getDateStr = (jour) => {
   const dayIndex = joursSemaine.indexOf(jour)
-  const d = new Date(baseWeekStart)
-  d.setDate(baseWeekStart.getDate() + (currentWeek.value - 19) * 7 + dayIndex)
-  return d.toLocaleDateString('en-CA')
+  const [y, m, d] = currentWeekMonday.value.split('-').map(Number)
+  return toISO(new Date(y, m - 1, d + dayIndex))
 }
 
 const postExec = async (payload) => {
@@ -522,15 +547,15 @@ const handleAssign = async (data) => {
   }
 
   // Supprimer l'ancienne assignation en base
-  const existing = planningByWeek.value[currentWeek.value]?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]
+  const existing = planningByWeek.value[weekKey.value]?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]
   if (existing) {
     await deleteExecIds(existing._execId || existing._execIds)
   }
 
   // S'assurer que la structure locale existe
-  ensureWeek(currentWeek.value)
-  if (!planningByWeek.value[currentWeek.value][modalPatient.value.id]) planningByWeek.value[currentWeek.value][modalPatient.value.id] = {}
-  if (!planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value]) planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value] = {}
+  ensureWeek(weekKey.value)
+  if (!planningByWeek.value[weekKey.value][modalPatient.value.id]) planningByWeek.value[weekKey.value][modalPatient.value.id] = {}
+  if (!planningByWeek.value[weekKey.value][modalPatient.value.id][modalJour.value]) planningByWeek.value[weekKey.value][modalPatient.value.id][modalJour.value] = {}
 
   const dateStr = getDateStr(modalJour.value)
 
@@ -541,13 +566,13 @@ const handleAssign = async (data) => {
         postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[0]), secondAideSoignantId: getAideSoignantId(data.ases[1]), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[0]} min` }),
         postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[1]), secondAideSoignantId: getAideSoignantId(data.ases[0]), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[1]} min` })
       ])
-      planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
+      planningByWeek.value[weekKey.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
         type: 'shared', ases: data.ases, durees: data.durees.map(d => +d), moment, _execIds: [e1.id, e2.id]
       }
     } else {
       const { as: asCode, duree, moment } = data
       const exec = await postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(asCode), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment || 'matin'), statut: 'PLANIFIE', commentaire: `Durée: ${duree || 30} min` })
-      planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
+      planningByWeek.value[weekKey.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
         as: asCode, duree: +(duree || 30), moment: moment || 'matin', _execId: exec.id
       }
     }
@@ -560,10 +585,10 @@ const handleAssign = async (data) => {
 
 const handleRemove = async () => {
   if (!modalPatient.value || !modalJour.value) return
-  const existing = planningByWeek.value[currentWeek.value]?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]
+  const existing = planningByWeek.value[weekKey.value]?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]
   if (existing) {
     await deleteExecIds(existing._execId || existing._execIds)
-    delete planningByWeek.value[currentWeek.value][modalPatient.value.id][modalJour.value][selectedActivity.value]
+    delete planningByWeek.value[weekKey.value][modalPatient.value.id][modalJour.value][selectedActivity.value]
   }
   closeModal()
 }
