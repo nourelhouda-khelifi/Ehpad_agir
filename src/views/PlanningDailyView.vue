@@ -483,13 +483,22 @@ const downloadPDF = async () => {
         doc.setFont(undefined, 'normal')
         doc.text(`Aide-soignante: ${filterAS.value} — ${weekLabel.value}`, pageWidth / 2, 14, { align: 'center' })
         
-        // Capture ultra haute résolution pour net maximal
-        const canvas = await html2canvas(planningRef.value, {
-          scale: 2.5, // Ultra net
+        // Capture tout le contenu scrollable (pas seulement la zone visible)
+        const el = planningRef.value
+        const fullWidth = el.scrollWidth
+        const fullHeight = el.scrollHeight
+        const canvas = await html2canvas(el, {
+          scale: 2,
           backgroundColor: '#ffffff',
           logging: false,
           useCORS: true,
-          allowTaint: true
+          allowTaint: true,
+          width: fullWidth,
+          height: fullHeight,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: fullWidth,
+          windowHeight: fullHeight
         })
         
         // Agrandir à 78% - très grand et net
