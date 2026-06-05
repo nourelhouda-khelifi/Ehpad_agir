@@ -5,6 +5,7 @@
 
 import { API_CONFIG, getFullUrl } from './config.js'
 import { useAuth } from '@/composables/useAuth.js'
+import router from '@/router/index.js'
 
 /**
  * Client HTTP générique
@@ -41,6 +42,14 @@ class ApiClient {
       
       const response = await fetch(url, config)
       console.log(`🔵 [API] Réponse: ${response.status} ${response.statusText}`)
+
+      // Token expiré ou invalide → déconnexion et redirect login
+      if (response.status === 401) {
+        const { clearAuth } = useAuth()
+        clearAuth()
+        router.push({ name: 'Login' })
+        throw new Error('Session expirée, veuillez vous reconnecter.')
+      }
 
       // Gérer les erreurs HTTP
       if (!response.ok) {
