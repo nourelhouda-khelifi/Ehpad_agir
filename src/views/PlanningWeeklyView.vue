@@ -317,11 +317,12 @@ const buildPlanningFromExecutions = (executions, mondayStr) => {
         ases: [existing.as, asCode],
         durees: [existing.duree || 30, duree],
         moment: existing.moment || moment,
-        _execIds: [existing._execId, execution.id]
+        _execIds: [existing._execId, execution.id],
+        notesSoignant: execution.notesSoignant || existing.notesSoignant || null
       }
     } else if (!existing) {
       planningByWeek.value[mondayStr][patientId][jour][activity] = {
-        as: asCode, duree, moment, _execId: execution.id
+        as: asCode, duree, moment, _execId: execution.id, notesSoignant: execution.notesSoignant || null
       }
     }
   })
@@ -568,17 +569,17 @@ const handleAssign = async (data) => {
     if (data.type === 'shared') {
       const moment = data.moment || 'matin'
       const [e1, e2] = await Promise.all([
-        postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[0]), secondAideSoignantId: getAideSoignantId(data.ases[1]), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[0]} min` }),
-        postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[1]), secondAideSoignantId: getAideSoignantId(data.ases[0]), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[1]} min` })
+        postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[0]), secondAideSoignantId: getAideSoignantId(data.ases[1]), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[0]} min`, notesSoignant: data.notesSoignant || null }),
+        postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[1]), secondAideSoignantId: getAideSoignantId(data.ases[0]), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[1]} min`, notesSoignant: data.notesSoignant || null })
       ])
       planningByWeek.value[weekKey.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
-        type: 'shared', ases: data.ases, durees: data.durees.map(d => +d), moment, _execIds: [e1.id, e2.id]
+        type: 'shared', ases: data.ases, durees: data.durees.map(d => +d), moment, _execIds: [e1.id, e2.id], notesSoignant: data.notesSoignant || null
       }
     } else {
       const { as: asCode, duree, moment } = data
-      const exec = await postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(asCode), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment || 'matin'), statut: 'PLANIFIE', commentaire: `Durée: ${duree || 30} min` })
+      const exec = await postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(asCode), dateExecution: dateStr, heureExecution: getMomentAsHeure(moment || 'matin'), statut: 'PLANIFIE', commentaire: `Durée: ${duree || 30} min`, notesSoignant: data.notesSoignant || null })
       planningByWeek.value[weekKey.value][modalPatient.value.id][modalJour.value][selectedActivity.value] = {
-        as: asCode, duree: +(duree || 30), moment: moment || 'matin', _execId: exec.id
+        as: asCode, duree: +(duree || 30), moment: moment || 'matin', _execId: exec.id, notesSoignant: data.notesSoignant || null
       }
     }
   } catch (e) {

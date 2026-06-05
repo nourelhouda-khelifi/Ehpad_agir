@@ -148,6 +148,17 @@
           </div>
         </div>
 
+        <!-- Commentaire -->
+        <div class="field-group">
+          <label class="field-label">Commentaire (optionnel)</label>
+          <textarea
+            v-model="notesSoignant"
+            class="comment-textarea"
+            placeholder="Ex : patient agité, douche assise, aide partielle..."
+            rows="3"
+          ></textarea>
+        </div>
+
       </div>
 
       <!-- Footer -->
@@ -208,6 +219,7 @@ const selectedDureeTotal = ref(props.activityActuelle?.duree ?? 30)
 const selectedDuree1 = ref(props.activityActuelle?.durees?.[0] ?? 15)
 const selectedDuree2 = ref(props.activityActuelle?.durees?.[1] ?? 15)
 const selectedMoment = ref(props.activityActuelle?.moment || (props.activite === 'coucher' ? '18-19' : 'matin'))
+const notesSoignant = ref(props.activityActuelle?.notesSoignant || '')
 
 const jourLabel = computed(() => {
   const jourIndex = { lundi: 0, mardi: 1, mercredi: 2, jeudi: 3, vendredi: 4, samedi: 5, dimanche: 6 }[props.jour] ?? 0
@@ -254,17 +266,18 @@ const momentOptions = computed(() => {
 const handleConfirm = () => {
   if (!selectedAS.value) return
   
+  const note = notesSoignant.value?.trim() || null
   if (assignmentType.value === 'single') {
     const duree = selectedDuree.value ? parseInt(selectedDuree.value) : 30
-    emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value })
+    emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value, notesSoignant: note })
   } else {
-    // Assignation à 2 aides
     if (!selectedAS2.value) return
     emit('confirm', {
       type: 'shared',
       ases: [selectedAS.value, selectedAS2.value],
       durees: [parseInt(selectedDuree1.value) || 0, parseInt(selectedDuree2.value) || 0],
-      moment: selectedMoment.value
+      moment: selectedMoment.value,
+      notesSoignant: note
     })
   }
 }
@@ -645,6 +658,27 @@ const handleRemove = () => {
   padding-top: 6px;
   border-top: 1px solid var(--color-border-light);
 }
+
+/* ── Comment textarea ───────────────────────── */
+.comment-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--color-border-light);
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  resize: vertical;
+  min-height: 70px;
+  transition: border-color 0.18s;
+  box-sizing: border-box;
+}
+.comment-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.comment-textarea::placeholder { color: var(--color-text-tertiary); }
 
 /* ── Footer ──────────────────────────────────── */
 .modal-footer {

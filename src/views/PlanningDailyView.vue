@@ -292,10 +292,11 @@ const buildPlanningFromExecutions = (executions, mondayStr) => {
     if (existing?._execId && asCode && existing.as !== asCode) {
       planningByWeek.value[mondayStr][patientId][jour][activity] = {
         type: 'shared', ases: [existing.as, asCode], durees: [existing.duree || 30, duree],
-        moment: existing.moment || moment, _execIds: [existing._execId, execution.id]
+        moment: existing.moment || moment, _execIds: [existing._execId, execution.id],
+        notesSoignant: execution.notesSoignant || existing.notesSoignant || null
       }
     } else if (!existing) {
-      planningByWeek.value[mondayStr][patientId][jour][activity] = { as: asCode, duree, moment, _execId: execution.id }
+      planningByWeek.value[mondayStr][patientId][jour][activity] = { as: asCode, duree, moment, _execId: execution.id, notesSoignant: execution.notesSoignant || null }
     }
   })
 }
@@ -536,7 +537,9 @@ const downloadPDF = async () => {
             : act.moment === 'soir' ? 'Soir'
             : act.moment === '18-19' ? '18h-19h'
             : act.moment === '19-20' ? '19h-20h' : act.moment || ''
-          momentParJour.push(`${jourLabels[jour]} – ${momentLabel}${act.duree ? ` (${act.duree} min)` : ''}`)
+          let ligne = `${jourLabels[jour]} – ${momentLabel}${act.duree ? ` (${act.duree} min)` : ''}`
+          if (act.notesSoignant) ligne += `\n→ ${act.notesSoignant}`
+          momentParJour.push(ligne)
         }
       })
 
@@ -656,6 +659,99 @@ const downloadPDF = async () => {
 
         doc.setFontSize(9)
         toilY += rowHeight
+      })
+    }
+
+    // ===== PAGE 3: RÉCAPITULATIF DES COMMENTAIRES =====
+    const commentRows = []
+    const activityLabels = {
+      douche: 'Douche', toilette: 'Toilette', wc: 'WC', coucher: 'Coucher',
+      lever: 'Lever', sieste: 'Sieste', repas: 'Repas', petitDejeuner: 'Petit déjeuner'
+    }
+
+    patients.value.forEach(patient => {
+      joursSemaine.forEach(jour => {
+        const dayActivities = planningByWeek.value[week]?.[patient.id]?.[jour]
+        if (!dayActivities) return
+        Object.entries(dayActivities).forEach(([actKey, act]) => {
+          if (!act?.notesSoignant) return
+          const hasAS = act.type === 'shared'
+            ? act.ases?.includes(filterAS.value)
+            : act.as === filterAS.value
+          if (!hasAS) return
+          commentRows.push({
+            patient: `${patient.prenom} ${patient.nom}`,
+            chambre: patient.numeroChambre || '-',
+            jour: jourLabels[jour] || jour,
+            soin: activityLabels[actKey] || actKey,
+            commentaire: act.notesSoignant
+          })
+        })
+      })
+    })
+
+    if (commentRows.length > 0) {
+      doc.addPage('p', 'a4')
+      const pageHC = doc.internal.pageSize.getHeight()
+      const marginC = 12
+      let cy = 15
+
+      doc.setFontSize(14)
+      doc.setFont(undefined, 'bold')
+      doc.setTextColor(37, 99, 235)
+      doc.text(`Commentaires des soins — ${filterAS.value}`, marginC, cy)
+      cy += 6
+      doc.setFontSize(9)
+      doc.setFont(undefined, 'normal')
+      doc.setTextColor(100, 116, 139)
+      doc.text(weekLabel.value, marginC, cy)
+      cy += 8
+
+      const cColWidths = [38, 18, 18, 22, 79]
+      const cHeaders = ['Patient', 'Chambre', 'Jour', 'Soin', 'Commentaire']
+
+      doc.setFillColor(37, 99, 235)
+      doc.setTextColor(255, 255, 255)
+      doc.setFont(undefined, 'bold')
+      doc.setFontSize(9)
+      let cX = marginC
+      cHeaders.forEach((h, i) => {
+        doc.rect(cX, cy, cColWidths[i], 9, 'FD')
+        doc.text(h, cX + 2, cy + 6)
+        cX += cColWidths[i]
+      })
+      cy += 9
+
+      doc.setTextColor(0, 0, 0)
+      doc.setFont(undefined, 'normal')
+      doc.setFontSize(8)
+
+      commentRows.forEach((row, idx) => {
+        if (cy > pageHC - 18) { doc.addPage('p', 'a4'); cy = 15 }
+        const splitComment = doc.splitTextToSize(row.commentaire, cColWidths[4] - 4)
+        const rowH = Math.max(9, splitComment.length * 4.5 + 4)
+
+        doc.setFillColor(idx % 2 === 0 ? 245 : 255, idx % 2 === 0 ? 248 : 255, idx % 2 === 0 ? 252 : 255)
+        cX = marginC
+        cColWidths.forEach(w => { doc.rect(cX, cy, w, rowH, 'F'); cX += w })
+        doc.setDrawColor(200, 210, 230)
+        doc.setLineWidth(0.2)
+        cX = marginC
+        cColWidths.forEach(w => { doc.rect(cX, cy, w, rowH); cX += w })
+
+        cX = marginC
+        doc.setFont(undefined, 'bold')
+        doc.text(row.patient, cX + 2, cy + 4, { maxWidth: cColWidths[0] - 4 })
+        cX += cColWidths[0]
+        doc.setFont(undefined, 'normal')
+        ;[row.chambre, row.jour, row.soin].forEach((val, i) => {
+          doc.text(val, cX + 2, cy + 4, { maxWidth: cColWidths[i + 1] - 4 })
+          cX += cColWidths[i + 1]
+        })
+        doc.setTextColor(30, 41, 59)
+        doc.text(splitComment, cX + 2, cy + 3, { maxWidth: cColWidths[4] - 4 })
+        doc.setTextColor(0, 0, 0)
+        cy += rowH
       })
     }
 
