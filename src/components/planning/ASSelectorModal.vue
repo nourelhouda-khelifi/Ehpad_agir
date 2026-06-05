@@ -183,6 +183,36 @@
           </div>
         </div>
 
+        <!-- Répéter sur d'autres semaines -->
+        <div class="field-group">
+          <label class="field-label">Répéter sur d'autres semaines</label>
+          <div class="weeks-repeat">
+
+            <div class="weeks-row">
+              <span class="weeks-label">🔮 Semaines suivantes</span>
+              <div class="weeks-quick">
+                <button type="button" v-for="n in [1,2,4,8,12]" :key="n"
+                  class="week-quick-btn"
+                  :class="{ 'is-active': nbSemainesApres === n }"
+                  @click="nbSemainesApres = nbSemainesApres === n ? 0 : n"
+                >{{ n }}</button>
+              </div>
+              <div class="stepper stepper-sm">
+                <button type="button" class="step-btn" @click="nbSemainesApres = Math.max(0, nbSemainesApres - 1)">−</button>
+                <span class="step-val">{{ nbSemainesApres }} sem</span>
+                <button type="button" class="step-btn" @click="nbSemainesApres = Math.min(52, nbSemainesApres + 1)">+</button>
+              </div>
+            </div>
+
+            <div v-if="nbSemainesApres > 0" class="weeks-summary">
+              Ce soin sera créé sur
+              <strong>{{ nbSemainesApres + 1 }} semaine(s)</strong>
+              au total (semaine actuelle incluse)
+              <span v-if="joursCopie.length > 0"> × {{ joursCopie.length + 1 }} jour(s)</span>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Footer -->
@@ -245,6 +275,7 @@ const selectedDuree2 = ref(props.activityActuelle?.durees?.[1] ?? 15)
 const selectedMoment = ref(props.activityActuelle?.moment || (props.activite === 'coucher' ? '18-19' : 'matin'))
 const notesSoignant = ref(props.activityActuelle?.notesSoignant || '')
 const joursCopie = ref([])
+const nbSemainesApres = ref(0)
 
 const allDaysOrdered = [
   { key: 'lundi',    label: 'Lun' },
@@ -319,9 +350,10 @@ const handleConfirm = () => {
   
   const note = notesSoignant.value?.trim() || null
   const copie = [...joursCopie.value]
+  const semaines = { apres: nbSemainesApres.value }
   if (assignmentType.value === 'single') {
     const duree = selectedDuree.value ? parseInt(selectedDuree.value) : 30
-    emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value, notesSoignant: note, joursCopie: copie })
+    emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value, notesSoignant: note, joursCopie: copie, semaines })
   } else {
     if (!selectedAS2.value) return
     emit('confirm', {
@@ -330,7 +362,8 @@ const handleConfirm = () => {
       durees: [parseInt(selectedDuree1.value) || 0, parseInt(selectedDuree2.value) || 0],
       moment: selectedMoment.value,
       notesSoignant: note,
-      joursCopie: copie
+      joursCopie: copie,
+      semaines
     })
   }
 }
@@ -770,6 +803,60 @@ const handleRemove = () => {
   color: #94A3B8;
   cursor: default;
   font-style: italic;
+}
+
+/* ── Weeks repeat ───────────────────────────── */
+.weeks-repeat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--color-bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-light);
+}
+
+.weeks-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.weeks-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 160px;
+}
+
+.weeks-quick {
+  display: flex;
+  gap: 4px;
+}
+
+.week-quick-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1.5px solid var(--color-border-light);
+  background: white;
+  color: var(--color-text-secondary);
+}
+
+.week-quick-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.week-quick-btn.is-active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+
+.weeks-summary {
+  font-size: 11px;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(37,99,235,0.2);
 }
 
 /* ── Comment textarea ───────────────────────── */

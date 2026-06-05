@@ -622,33 +622,57 @@ const handleAssign = async (data) => {
     console.error('Erreur sauvegarde:', e)
   }
 
-  // Duplication sur les autres jours sélectionnés
-  for (const jourCopie of (data.joursCopie || [])) {
-    const existingCopie = planningByWeek.value[weekKey.value]?.[modalPatient.value.id]?.[jourCopie]?.[selectedActivity.value]
-    if (existingCopie) await deleteExecIds(existingCopie._execId || existingCopie._execIds)
+  // Helper : crée une execution pour un jour + lundi cible donnés
+  const assignOnDay = async (jour, targetMonday) => {
+    const dayIndex = joursSemaine.indexOf(jour)
+    const [ty, tm, td] = targetMonday.split('-').map(Number)
+    const ds = toISO(new Date(ty, tm - 1, td + dayIndex))
 
-    if (!planningByWeek.value[weekKey.value][modalPatient.value.id]) planningByWeek.value[weekKey.value][modalPatient.value.id] = {}
-    if (!planningByWeek.value[weekKey.value][modalPatient.value.id][jourCopie]) planningByWeek.value[weekKey.value][modalPatient.value.id][jourCopie] = {}
+    ensureWeek(targetMonday)
+    if (!planningByWeek.value[targetMonday][modalPatient.value.id])
+      planningByWeek.value[targetMonday][modalPatient.value.id] = {}
+    if (!planningByWeek.value[targetMonday][modalPatient.value.id][jour])
+      planningByWeek.value[targetMonday][modalPatient.value.id][jour] = {}
 
-    const dateStrCopie = getDateStr(jourCopie)
+    const prev = planningByWeek.value[targetMonday]?.[modalPatient.value.id]?.[jour]?.[selectedActivity.value]
+    if (prev) await deleteExecIds(prev._execId || prev._execIds)
+
     try {
       if (data.type === 'shared') {
         const moment = data.moment || 'matin'
-        const [ec1, ec2] = await Promise.all([
-          postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[0]), secondAideSoignantId: getAideSoignantId(data.ases[1]), dateExecution: dateStrCopie, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[0]} min`, notesSoignant: data.notesSoignant || null }),
-          postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[1]), secondAideSoignantId: getAideSoignantId(data.ases[0]), dateExecution: dateStrCopie, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[1]} min`, notesSoignant: data.notesSoignant || null })
+        const [e1, e2] = await Promise.all([
+          postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[0]), secondAideSoignantId: getAideSoignantId(data.ases[1]), dateExecution: ds, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[0]} min`, notesSoignant: data.notesSoignant || null }),
+          postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[1]), secondAideSoignantId: getAideSoignantId(data.ases[0]), dateExecution: ds, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[1]} min`, notesSoignant: data.notesSoignant || null })
         ])
-        planningByWeek.value[weekKey.value][modalPatient.value.id][jourCopie][selectedActivity.value] = {
-          type: 'shared', ases: data.ases, durees: data.durees.map(d => +d), moment, _execIds: [ec1.id, ec2.id], notesSoignant: data.notesSoignant || null
+        planningByWeek.value[targetMonday][modalPatient.value.id][jour][selectedActivity.value] = {
+          type: 'shared', ases: data.ases, durees: data.durees.map(d => +d), moment, _execIds: [e1.id, e2.id], notesSoignant: data.notesSoignant || null
         }
       } else {
-        const exec = await postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.as), dateExecution: dateStrCopie, heureExecution: getMomentAsHeure(data.moment || 'matin'), statut: 'PLANIFIE', commentaire: `Durée: ${data.duree || 30} min`, notesSoignant: data.notesSoignant || null })
-        planningByWeek.value[weekKey.value][modalPatient.value.id][jourCopie][selectedActivity.value] = {
+        const exec = await postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.as), dateExecution: ds, heureExecution: getMomentAsHeure(data.moment || 'matin'), statut: 'PLANIFIE', commentaire: `Durée: ${data.duree || 30} min`, notesSoignant: data.notesSoignant || null })
+        planningByWeek.value[targetMonday][modalPatient.value.id][jour][selectedActivity.value] = {
           as: data.as, duree: +(data.duree || 30), moment: data.moment || 'matin', _execId: exec.id, notesSoignant: data.notesSoignant || null
         }
       }
     } catch (e) {
-      console.error(`Erreur duplication vers ${jourCopie}:`, e)
+      console.error(`Erreur assignation ${jour} semaine ${targetMonday}:`, e)
+    }
+  }
+
+  // Duplication sur les autres jours de la semaine actuelle
+  for (const jourCopie of (data.joursCopie || [])) {
+    await assignOnDay(jourCopie, weekKey.value)
+  }
+
+  // Duplication sur d'autres semaines (tous les jours sélectionnés)
+  const allJours = [modalJour.value, ...(data.joursCopie || [])]
+  const weekOffsets = []
+  for (let i = 1; i <= (data.semaines?.apres || 0); i++) weekOffsets.push(i)
+
+  for (const offset of weekOffsets) {
+    const [y, m, d] = currentWeekMonday.value.split('-').map(Number)
+    const targetMonday = toISO(new Date(y, m - 1, d + offset * 7))
+    for (const jour of allJours) {
+      await assignOnDay(jour, targetMonday)
     }
   }
 
