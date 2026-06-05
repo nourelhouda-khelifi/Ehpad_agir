@@ -263,7 +263,7 @@ const submitForm = async () => {
     numeroChambre: formData.value.numeroChambre || undefined,
     nom: formData.value.nom,
     prenom: formData.value.prenom,
-    etage: formData.value.etage || undefined,
+    etage: formData.value.etage ?? undefined,
     statut: formData.value.statut || undefined,
     categorie: formData.value.categorie || undefined,
     profil: formData.value.profil || undefined,

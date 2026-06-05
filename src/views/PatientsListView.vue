@@ -39,6 +39,7 @@
       </div>
       <select v-model="filterEtage" class="filter-select">
         <option value="">Tous les étages</option>
+        <option value="0">RDC</option>
         <option value="1">1er étage</option>
         <option value="2">2ème étage</option>
         <option value="3">3ème étage</option>
@@ -258,11 +259,12 @@ const updatePatient = async (patientId, field, value) => {
   const previousValue = patient[field]
 
   // Mise à jour locale immédiate (UX réactive)
-  patient[field] = value || null
+  // ?? au lieu de || pour préserver "" (vide = effacer profil) sans le convertir en null
+  patient[field] = value ?? null
 
   try {
     // Envoyer UNIQUEMENT le champ modifié — plus fiable que de spreader tout l'objet
-    const payload = { [field]: value || null }
+    const payload = { [field]: value ?? null }
     const response = await apiClient.put(`/patients/${patientId}`, payload)
     if (response && response.id) {
       Object.assign(patient, response)

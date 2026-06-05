@@ -35,6 +35,24 @@
 
         <div class="rapport-divider"></div>
 
+        <!-- RDC -->
+        <div class="rapport-card">
+          <div class="rapport-icon-wrap" style="background: #EFF6FF;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+              <path d="M7 3.5A5 5 0 0 0 7 16.5" stroke-dasharray="2 2"/>
+              <path d="M17 3.5A5 5 0 0 1 17 16.5" stroke-dasharray="2 2"/>
+            </svg>
+          </div>
+          <div class="rapport-card-text">
+            <span class="rapport-label">Total Patients RDC</span>
+            <span class="rapport-value">{{ rapportData.etageRDC }}</span>
+          </div>
+        </div>
+
+        <div class="rapport-divider"></div>
+
         <!-- Etage 1 -->
         <div class="rapport-card">
           <div class="rapport-icon-wrap" style="background: #D1FAE5;">
@@ -175,6 +193,7 @@ const stats = computed(() => ({
 
 // Rapport par étage
 const rapportData = computed(() => ({
+  etageRDC: dashboardStats.value.patientsByFloor[0] || 0,
   etage1: dashboardStats.value.patientsByFloor[1] || 0,
   etage2: dashboardStats.value.patientsByFloor[2] || 0,
   etage3: dashboardStats.value.patientsByFloor[3] || 0,
@@ -263,6 +282,7 @@ const generatePDF = async () => {
   const reportStats = [
     ['Métrique', 'Valeur'],
     ['Total Patients', stats.value.totalPatients.toString()],
+    ['Patients RDC', rapportData.value.etageRDC.toString()],
     ['Patients Étage 1', rapportData.value.etage1.toString()],
     ['Patients Étage 2', rapportData.value.etage2.toString()],
     ['Patients Étage 3', rapportData.value.etage3.toString()],

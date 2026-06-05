@@ -7,7 +7,7 @@
       </h1>
       <div class="patient-tags">
         <span class="tag tag-room">📍 Chambre {{ patient.chambre }}</span>
-        <span class="tag tag-floor">🏥 B34 - {{ patient.etage === 1 ? '1er' : '2ème' }} étage</span>
+        <span class="tag tag-floor">🏥 B34 - {{ patient.etage === 0 ? 'RDC' : patient.etage === 1 ? '1er étage' : patient.etage === 2 ? '2ème étage' : patient.etage === 3 ? '3ème étage' : patient.etage + 'ème étage' }}</span>
         <span class="tag tag-status">
           {{ patient.statut === 'hospitalise' ? '🏥 Hospitalisée' : 'Standard' }}
         </span>

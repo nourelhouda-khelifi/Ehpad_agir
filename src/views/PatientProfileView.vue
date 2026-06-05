@@ -15,7 +15,7 @@
     <div class="patient-header-actions">
       <div class="patient-info">
         <h1>{{ patient.nom }} {{ patient.prenom }}</h1>
-        <p>Chambre {{ patient.numeroChambre }} - Étage {{ patient.etage }}</p>
+        <p>Chambre {{ patient.numeroChambre }} - {{ patient.etage === 0 ? 'RDC' : 'Étage ' + patient.etage }}</p>
       </div>
       <div class="header-actions-right">
         <button class="btn btn-secondary" @click="generatePatientPDF()">📥 Télécharger</button>
@@ -34,7 +34,7 @@
       <SectionCard title="Infos Patient" icon="👤">
         <InfoRow label="ID" :value="patient.id.toString()" />
         <InfoRow label="Chambre" :value="patient.numeroChambre" />
-        <InfoRow label="Étage" :value="patient.etage.toString()" />
+        <InfoRow label="Étage" :value="patient.etage === 0 ? 'RDC' : patient.etage.toString()" />
         <InfoRow label="Statut" :value="patient.statut || 'N/A'" />
         <InfoRow label="Catégorie" :value="patient.categorie || 'N/A'" />
       </SectionCard>

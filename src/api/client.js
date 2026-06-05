@@ -7,6 +7,8 @@ import { API_CONFIG, getFullUrl } from './config.js'
 import { useAuth } from '@/composables/useAuth.js'
 import router from '@/router/index.js'
 
+const isDev = import.meta.env.DEV
+
 /**
  * Client HTTP générique
  */
@@ -38,10 +40,10 @@ class ApiClient {
     }
 
     try {
-      console.log(`🔵 [API] ${method} ${url}`, options.data ? `Payload: ${config.body}` : '')
-      
+      if (isDev) console.log(`🔵 [API] ${method} ${url}`, options.data ? `Payload: ${config.body}` : '')
+
       const response = await fetch(url, config)
-      console.log(`🔵 [API] Réponse: ${response.status} ${response.statusText}`)
+      if (isDev) console.log(`🔵 [API] Réponse: ${response.status} ${response.statusText}`)
 
       // Token expiré ou invalide → déconnexion et redirect login
       if (response.status === 401) {
@@ -61,12 +63,12 @@ class ApiClient {
 
       // Retourner la réponse (ou null pour 204 No Content)
       if (response.status === 204) {
-        console.log(`🟢 [API] 204 No Content`)
+        if (isDev) console.log(`🟢 [API] 204 No Content`)
         return null
       }
 
       const responseData = await response.json()
-      console.log(`🟢 [API] Données reçues:`, responseData)
+      if (isDev) console.log(`🟢 [API] Données reçues:`, responseData)
       return responseData
     } catch (error) {
       console.error(`❌ [API] Erreur lors de la requête ${method} ${url}:`, error)

@@ -48,6 +48,7 @@
       <div class="filter-group">
         <span class="filter-group-label">Étage</span>
         <FilterPill :active="filterEtage === 'all'" :count="patients.length" @click="filterEtage = 'all'">Tous</FilterPill>
+        <FilterPill :active="filterEtage === '0'" :count="countEtage(0)" @click="filterEtage = '0'">RDC</FilterPill>
         <FilterPill :active="filterEtage === '1'" :count="countEtage(1)" @click="filterEtage = '1'">1er</FilterPill>
         <FilterPill :active="filterEtage === '2'" :count="countEtage(2)" @click="filterEtage = '2'">2ème</FilterPill>
         <FilterPill :active="filterEtage === '3'" :count="countEtage(3)" @click="filterEtage = '3'">3ème</FilterPill>
@@ -1035,6 +1036,10 @@ const handleRemove = async () => {
 
 .grid-row:hover {
   box-shadow: inset 0 0 0 9999px rgba(37, 99, 235, 0.02);
+}
+
+.etage-0 {
+  background: linear-gradient(90deg, #EFF6FF 0%, #F0F9FF 100%);
 }
 
 .etage-1 {

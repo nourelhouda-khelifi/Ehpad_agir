@@ -49,8 +49,8 @@
             </select>
           </td>
           <td class="profil-cell">
-            <select 
-              :value="patient.profil" 
+            <select
+              :value="patient.profil || ''"
               @change="$emit('update-patient', patient.id, 'profil', $event.target.value)"
               class="cell-select"
             >
