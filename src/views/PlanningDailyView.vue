@@ -7,9 +7,10 @@
         <p class="page-subtitle">{{ weekLabel }}</p>
       </div>
       <div class="page-actions">
-        <CalendarWeekSelector
-          v-model="currentWeekMonday"
-        />
+        <CalendarWeekSelector v-model="currentWeekMonday" />
+        <button class="btn-refresh" :disabled="isRefreshing" @click="refresh">
+          {{ isRefreshing ? '⟳ Chargement...' : '⟳ Actualiser' }}
+        </button>
       </div>
     </div>
 
@@ -188,7 +189,13 @@ const typeSoinIdToActivity = ref({})
 
 // Gestion des semaines via date ISO Monday
 const planningByWeek = ref({})
-const loadedWeeks = new Set()
+const isRefreshing = ref(false)
+
+const refresh = async () => {
+  isRefreshing.value = true
+  await loadWeekExecutions(currentWeekMonday.value)
+  isRefreshing.value = false
+}
 
 const getCurrentWeekMonday = () => {
   const today = new Date()
@@ -204,7 +211,6 @@ const toISO = (date) => date.toISOString().split('T')[0]
 const currentWeekMonday = ref(getCurrentWeekMonday())
 
 watch(currentWeekMonday, (monday) => {
-  if (!planningByWeek.value[monday]) planningByWeek.value[monday] = {}
   loadWeekExecutions(monday)
 }, { immediate: false })
 
@@ -295,16 +301,13 @@ const buildPlanningFromExecutions = (executions, mondayStr) => {
 }
 
 const loadWeekExecutions = async (mondayStr) => {
-  if (loadedWeeks.has(mondayStr)) return
-  loadedWeeks.add(mondayStr)
-  if (!planningByWeek.value[mondayStr]) planningByWeek.value[mondayStr] = {}
+  planningByWeek.value[mondayStr] = {} // reset pour supprimer les soins retirés
   const [y, m, d] = mondayStr.split('-').map(Number)
   const endDate = toISO(new Date(y, m - 1, d + 6))
   try {
     const executions = await apiClient.get(`/executions/range?startDate=${mondayStr}&endDate=${endDate}`)
     buildPlanningFromExecutions(executions, mondayStr)
   } catch (e) {
-    loadedWeeks.delete(mondayStr)
     console.error('Erreur chargement semaine:', e)
   }
 }
@@ -783,6 +786,29 @@ const downloadPDF = async () => {
 .btn-pdf:hover {
   background: #2563EB;
   border-color: #2563EB;
+}
+
+.btn-refresh {
+  padding: 8px 14px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  background: white;
+  color: #64748B;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  border-color: #2563EB;
+  color: #2563EB;
+  background: #EFF6FF;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .filter-btn.is-active {

@@ -42,7 +42,7 @@
           <span class="charge-minutes" :class="{ 'is-overload': getChargeForPeriod(as) >= 120 }">
             {{ getChargeForPeriod(as) }}min
           </span>
-          <span class="charge-patients">· {{ as.nbPatients }} pts</span>
+          <span class="charge-patients">· {{ props.chargeParPeriode?.nbPatients?.[as.code] ?? 0 }} pts</span>
           <span v-if="getChargeForPeriod(as) >= 120" class="warning-icon">⚠️</span>
         </div>
       </div>

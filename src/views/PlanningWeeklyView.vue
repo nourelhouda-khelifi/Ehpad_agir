@@ -171,9 +171,7 @@
       :jour="modalJour"
       :semaine="currentWeekMonday"
       :activite="selectedActivity"
-      :as-actuel="currentPlanning?.[modalPatient.id]?.[modalJour]?.[selectedActivity]?.as"
-      :duree-actuelle="currentPlanning?.[modalPatient.id]?.[modalJour]?.[selectedActivity]?.duree || (selectedActivity === 'douche' ? 30 : null)"
-      :moment-actuel="currentPlanning?.[modalPatient.id]?.[modalJour]?.[selectedActivity]?.moment || 'matin'"
+      :activity-actuelle="modalActivityData"
       :aides-avec-charge="aidesSoignantsAvecCharge"
       :recommandation="recommanderAS"
       @close="closeModal"
@@ -377,6 +375,12 @@ watch(currentWeekMonday, (newMonday) => {
 
 const currentPlanning = computed(() => planningByWeek.value[weekKey.value])
 const { aidesSoignantsAvecCharge, recommanderAS } = useCharge(currentPlanning, aidesSoignants)
+
+const modalActivityData = computed(() =>
+  modalPatient.value && modalJour.value
+    ? currentPlanning.value?.[modalPatient.value.id]?.[modalJour.value]?.[selectedActivity.value]
+    : null
+)
 const aidesCodes = computed(() => aidesSoignants.value.map((as) => as.code))
 
 const weekLabel = computed(() => {

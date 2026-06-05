@@ -90,6 +90,26 @@ export const useDashboardStats = () => {
   /**
    * Charger la charge hebdomadaire des aides-soignants
    */
+  const parseDuree = (commentaire) =>
+    parseInt(commentaire?.match(/Dur[ée]+: (\d+)/)?.[1] || '30')
+
+  // Même logique de déduplication que AidesSoignantsView :
+  // pour un AS donné, un seul exec par (patientId + jour + typeSoinId)
+  const getDeduplicatedExecs = (asCode) => {
+    const seen = new Set()
+    const result = []
+    executions.value.forEach(exec => {
+      if (exec.aideSoignant?.code !== asCode) return
+      const dayIndex = getDayIndexInCurrentWeek(exec.dateExecution, currentMondayStr)
+      if (dayIndex === -1) return
+      const key = `${exec.patientId}_${dayIndex}_${exec.typeSoinId}`
+      if (seen.has(key)) return
+      seen.add(key)
+      result.push({ exec, dayIndex })
+    })
+    return result
+  }
+
   const loadWeeklyCharge = () => {
     const chargeData = {}
     const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
@@ -98,11 +118,9 @@ export const useDashboardStats = () => {
       const chargeByDay = {}
       days.forEach(day => { chargeByDay[day] = 0 })
 
-      executions.value.forEach(exec => {
-        if (exec.aideSoignant?.code !== as.code) return
-        const dayIndex = getDayIndexInCurrentWeek(exec.dateExecution, currentMondayStr)
-        if (dayIndex === -1) return
-        chargeByDay[days[dayIndex]] = (chargeByDay[days[dayIndex]] || 0) + 30
+      getDeduplicatedExecs(as.code).forEach(({ exec, dayIndex }) => {
+        const day = days[dayIndex]
+        chargeByDay[day] = (chargeByDay[day] || 0) + parseDuree(exec.commentaire)
       })
 
       chargeData[as.code] = chargeByDay
@@ -213,36 +231,31 @@ export const useDashboardStats = () => {
     const charges = {
       toute: {},
       matin: {},
-      soir: {}
+      soir: {},
+      nbPatients: {}
     }
 
     aidesSoignants.value.forEach(as => {
       charges.toute[as.code] = 0
       charges.matin[as.code] = 0
       charges.soir[as.code] = 0
+      const patientsUniques = new Set()
 
-      const asExecutions = executions.value.filter(e => {
-        if (e.aideSoignant?.code !== as.code) return false
-        return getDayIndexInCurrentWeek(e.dateExecution, currentMondayStr) !== -1
-      })
+      getDeduplicatedExecs(as.code).forEach(({ exec }) => {
+        const minutes = parseDuree(exec.commentaire)
+        const heure = parseInt(exec.heureExecution?.split(':')[0] || '0')
 
-      asExecutions.forEach(e => {
-        const typeSoin = typesSoin.value.find(t => t.id === e.typeSoinId)
-        const minutes = typeSoin?.dureeParDefaut || 30
-        
-        // Récupérer l'heure (format "HH:MM")
-        const heure = parseInt(e.heureExecution?.split(':')[0] || '0')
-        
-        // Classer par période
         if (heure >= 6 && heure < 14) {
           charges.matin[as.code] += minutes
         } else if (heure >= 14 && heure < 22) {
           charges.soir[as.code] += minutes
         }
-        
-        // Total toute journée
+
         charges.toute[as.code] += minutes
+        if (exec.patientId) patientsUniques.add(exec.patientId)
       })
+
+      charges.nbPatients[as.code] = patientsUniques.size
     })
 
     return charges

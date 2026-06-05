@@ -17,14 +17,14 @@
         <h2 class="modal-title">{{ patientNom }}</h2>
 
         <!-- Recommandation inline -->
-        <div v-if="recommandation && !asActuel" class="reco-inline">
+        <div v-if="recommandation && !isCurrentAssigned" class="reco-inline">
           <span class="reco-icon">✨</span>
           <span><strong>{{ recommandation.code }}</strong> est le moins chargé ({{ recommandation.chargeMinutes }} min)</span>
         </div>
 
         <!-- Assignation actuelle -->
-        <div v-if="asActuel" class="current-inline">
-          <span>Assigné : <strong>{{ asActuel }}</strong></span>
+        <div v-if="isCurrentAssigned" class="current-inline">
+          <span>Assigné : <strong>{{ currentAssignmentLabel }}</strong></span>
           <button class="btn-remove" @click="handleRemove">Retirer</button>
         </div>
       </div>
@@ -60,14 +60,14 @@
               class="as-card"
               :class="{
                 'is-selected': selectedAS === as.code,
-                'is-recommended': recommandation?.code === as.code && !asActuel,
+                'is-recommended': recommandation?.code === as.code && !isCurrentAssigned,
               }"
               @click="selectedAS = as.code"
             >
               <div class="as-card-top">
                 <ASBadge :code="as.code" />
                 <span class="as-niveau-chip" :class="`niveau-${as.niveau}`">{{ as.labelNiveau }}</span>
-                <span v-if="recommandation?.code === as.code && !asActuel" class="reco-star">✨</span>
+                <span v-if="recommandation?.code === as.code && !isCurrentAssigned" class="reco-star">✨</span>
               </div>
               <ChargeBar :minutes="as.chargeMinutes" />
               <div class="as-card-meta">{{ as.chargeMinutes }} min</div>
@@ -158,7 +158,7 @@
           :disabled="!selectedAS || (assignmentType === 'shared' && (!selectedAS2 || !selectedDuree1 || !selectedDuree2))"
           @click="handleConfirm"
         >
-          {{ asActuel ? 'Modifier' : 'Confirmer' }}
+          {{ isCurrentAssigned ? 'Modifier' : 'Confirmer' }}
           <span v-if="selectedAS" class="confirm-as">{{ selectedAS }}<span v-if="assignmentType === 'shared' && selectedAS2"> + {{ selectedAS2 }}</span></span>
         </button>
       </div>
@@ -175,24 +175,39 @@ import ASBadge from '@/components/ui/ASBadge.vue'
 const props = defineProps({
   patientNom: { type: String, required: true },
   jour: { type: String, required: true },
-  semaine: { type: String, default: '' }, // ISO date YYYY-MM-DD of the week's Monday
-  asActuel: { type: String, default: null },
+  semaine: { type: String, default: '' },
   activite: { type: String, default: 'douche' },
-  dureeActuelle: { type: Number, default: 30 },
-  momentActuel: { type: String, default: 'matin' },
+  activityActuelle: { type: Object, default: null },
   aidesAvecCharge: { type: Array, required: true },
   recommandation: { type: Object, default: null }
 })
 
 const emit = defineEmits(['close', 'confirm', 'remove'])
-const selectedAS = ref(props.asActuel || props.recommandation?.code || null)
-const selectedAS2 = ref(null)
-const selectedDuree = ref(props.dureeActuelle !== undefined && props.dureeActuelle !== null ? props.dureeActuelle : '')
-const selectedDureeTotal = ref(props.dureeActuelle !== undefined && props.dureeActuelle !== null ? props.dureeActuelle : '')
-const selectedDuree1 = ref(props.dureeActuelle ? Math.ceil(props.dureeActuelle / 2) : 0)
-const selectedDuree2 = ref(props.dureeActuelle ? Math.floor(props.dureeActuelle / 2) : 0)
-const selectedMoment = ref(props.momentActuel || (props.activite === 'coucher' ? '18-19' : 'matin'))
-const assignmentType = ref('single')
+
+const isCurrentAssigned = computed(() =>
+  !!(props.activityActuelle?.as || props.activityActuelle?.type === 'shared')
+)
+
+const currentAssignmentLabel = computed(() => {
+  if (props.activityActuelle?.type === 'shared') return props.activityActuelle.ases.join(' + ')
+  return props.activityActuelle?.as || null
+})
+
+const isSharedCurrent = computed(() => props.activityActuelle?.type === 'shared')
+
+const assignmentType = ref(isSharedCurrent.value ? 'shared' : 'single')
+const selectedAS = ref(
+  props.activityActuelle?.ases?.[0] ||
+  props.activityActuelle?.as ||
+  props.recommandation?.code ||
+  null
+)
+const selectedAS2 = ref(props.activityActuelle?.ases?.[1] || null)
+const selectedDuree = ref(props.activityActuelle?.duree ?? 30)
+const selectedDureeTotal = ref(props.activityActuelle?.duree ?? 30)
+const selectedDuree1 = ref(props.activityActuelle?.durees?.[0] ?? 15)
+const selectedDuree2 = ref(props.activityActuelle?.durees?.[1] ?? 15)
+const selectedMoment = ref(props.activityActuelle?.moment || (props.activite === 'coucher' ? '18-19' : 'matin'))
 
 const jourLabel = computed(() => {
   const jourIndex = { lundi: 0, mardi: 1, mercredi: 2, jeudi: 3, vendredi: 4, samedi: 5, dimanche: 6 }[props.jour] ?? 0
@@ -240,7 +255,7 @@ const handleConfirm = () => {
   if (!selectedAS.value) return
   
   if (assignmentType.value === 'single') {
-    const duree = selectedDuree.value && selectedDuree.value !== '' ? parseInt(selectedDuree.value) : props.dureeActuelle || 30
+    const duree = selectedDuree.value ? parseInt(selectedDuree.value) : 30
     emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value })
   } else {
     // Assignation à 2 aides
