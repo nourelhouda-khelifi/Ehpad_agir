@@ -61,7 +61,15 @@ export function getProfilsInCategory(categoryId) {
 
 // Valeurs de l'enum GroupeCoucher du backend
 export const COUCHER_OPTIONS = [
-  { value: 'NON_DEFINI', icon: '—',   label: 'Aucun groupe',              time: '' },
-  { value: 'HELIOS',     icon: '🌙',  label: 'Hélios',                    time: '18:30 – 19:30' },
+  { value: 'NON_DEFINI',   icon: '—',   label: 'Aucun groupe',            time: '' },
+  { value: 'HELIOS',       icon: '🌙',  label: 'Hélios',                  time: '18:30 – 19:30' },
   { value: 'GRANDE_SALLE', icon: '🍽️', label: 'Grande Salle à Manger',   time: '19:30 – 20:30' },
+]
+
+// Valeurs de l'enum GroupeWC du backend
+export const WC_OPTIONS = [
+  { value: 'NON_DEFINI',     icon: '—',   label: 'Aucun groupe',   time: '' },
+  { value: 'WC_13H',         icon: '🕐',  label: 'WC 13H',         time: '13:00' },
+  { value: 'WC_16H',         icon: '🕓',  label: 'WC 16H',         time: '16:00' },
+  { value: 'WC_13H_ET_16H',  icon: '🕐🕓', label: '13H et 16H',    time: '13:00 & 16:00' },
 ]

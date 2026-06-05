@@ -84,7 +84,6 @@
       <!-- Footer -->
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="$emit('close')">Fermer</button>
-        <button class="btn btn-primary">Voir planning complet</button>
       </div>
     </div>
   </div>

@@ -159,6 +159,30 @@
           ></textarea>
         </div>
 
+        <!-- Répéter sur d'autres jours -->
+        <div class="field-group">
+          <div class="repeat-header">
+            <label class="field-label">Répéter sur d'autres jours</label>
+            <button type="button" class="btn-semaine" @click="toggleSemaine">
+              {{ joursCopie.length === otherDays.length ? 'Tout décocher' : 'Toute la semaine' }}
+            </button>
+          </div>
+          <div class="days-grid">
+            <button
+              v-for="day in allDaysOrdered"
+              :key="day.key"
+              type="button"
+              class="day-btn"
+              :class="{
+                'is-current': day.key === jour,
+                'is-active': joursCopie.includes(day.key)
+              }"
+              :disabled="day.key === jour"
+              @click="toggleJour(day.key)"
+            >{{ day.label }}</button>
+          </div>
+        </div>
+
       </div>
 
       <!-- Footer -->
@@ -220,6 +244,33 @@ const selectedDuree1 = ref(props.activityActuelle?.durees?.[0] ?? 15)
 const selectedDuree2 = ref(props.activityActuelle?.durees?.[1] ?? 15)
 const selectedMoment = ref(props.activityActuelle?.moment || (props.activite === 'coucher' ? '18-19' : 'matin'))
 const notesSoignant = ref(props.activityActuelle?.notesSoignant || '')
+const joursCopie = ref([])
+
+const allDaysOrdered = [
+  { key: 'lundi',    label: 'Lun' },
+  { key: 'mardi',    label: 'Mar' },
+  { key: 'mercredi', label: 'Mer' },
+  { key: 'jeudi',    label: 'Jeu' },
+  { key: 'vendredi', label: 'Ven' },
+  { key: 'samedi',   label: 'Sam' },
+  { key: 'dimanche', label: 'Dim' },
+]
+
+const otherDays = computed(() => allDaysOrdered.filter(d => d.key !== props.jour))
+
+const toggleJour = (key) => {
+  const idx = joursCopie.value.indexOf(key)
+  if (idx >= 0) joursCopie.value.splice(idx, 1)
+  else joursCopie.value.push(key)
+}
+
+const toggleSemaine = () => {
+  if (joursCopie.value.length === otherDays.value.length) {
+    joursCopie.value = []
+  } else {
+    joursCopie.value = otherDays.value.map(d => d.key)
+  }
+}
 
 const jourLabel = computed(() => {
   const jourIndex = { lundi: 0, mardi: 1, mercredi: 2, jeudi: 3, vendredi: 4, samedi: 5, dimanche: 6 }[props.jour] ?? 0
@@ -241,8 +292,8 @@ const activiteLabel = computed(() => {
     toilette: 'Toilette',
     coucher: 'Coucher',
     repas: 'Repas',
-    lever: 'Lever',
-    sieste: 'Sieste',
+    lever: 'Lever sieste',
+    sieste: 'Mise Sieste',
     petitDejeuner: 'Petit déjeuner'
   }
   return labels[props.activite] || props.activite
@@ -267,9 +318,10 @@ const handleConfirm = () => {
   if (!selectedAS.value) return
   
   const note = notesSoignant.value?.trim() || null
+  const copie = [...joursCopie.value]
   if (assignmentType.value === 'single') {
     const duree = selectedDuree.value ? parseInt(selectedDuree.value) : 30
-    emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value, notesSoignant: note })
+    emit('confirm', { as: selectedAS.value, duree, moment: selectedMoment.value, notesSoignant: note, joursCopie: copie })
   } else {
     if (!selectedAS2.value) return
     emit('confirm', {
@@ -277,7 +329,8 @@ const handleConfirm = () => {
       ases: [selectedAS.value, selectedAS2.value],
       durees: [parseInt(selectedDuree1.value) || 0, parseInt(selectedDuree2.value) || 0],
       moment: selectedMoment.value,
-      notesSoignant: note
+      notesSoignant: note,
+      joursCopie: copie
     })
   }
 }
@@ -657,6 +710,66 @@ const handleRemove = () => {
   text-align: right;
   padding-top: 6px;
   border-top: 1px solid var(--color-border-light);
+}
+
+/* ── Repeat days ─────────────────────────────── */
+.repeat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-semaine {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  border: 1px solid rgba(37,99,235,0.2);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-semaine:hover { background: #DBEAFE; }
+
+.days-grid {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.day-btn {
+  width: 38px;
+  height: 34px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1.5px solid var(--color-border-light);
+  background: white;
+  color: var(--color-text-secondary);
+}
+
+.day-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: #EFF6FF;
+}
+
+.day-btn.is-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  box-shadow: 0 2px 6px rgba(37,99,235,0.3);
+}
+
+.day-btn.is-current {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #94A3B8;
+  cursor: default;
+  font-style: italic;
 }
 
 /* ── Comment textarea ───────────────────────── */

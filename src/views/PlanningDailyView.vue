@@ -101,6 +101,15 @@
                   {{ getCoucherGroupChip(patient.groupeCoucher) }}
                 </span>
 
+                <!-- Chip groupe WC -->
+                <span
+                  v-if="activityKey === 'wc' && patient.groupeWC && patient.groupeWC !== 'NON_DEFINI'"
+                  class="coucher-group-chip"
+                  :class="`wc-${patient.groupeWC}`"
+                >
+                  {{ getWCGroupChip(patient.groupeWC) }}
+                </span>
+
                 <!-- Affichage simple -->
                 <span v-if="!activityData.type || activityData.type !== 'shared'" class="activity-as">
                   {{ activityData.as }}
@@ -330,8 +339,8 @@ const activitiesConfig = {
   toilette: { label: 'Toilette', color: '#06B6D4' },
   coucher: { label: 'Coucher', color: '#F97316' },
   repas: { label: 'Repas', color: '#22C55E' },
-  lever: { label: 'Lever', color: '#EC4899' },
-  sieste: { label: 'Sieste', color: '#8B5CF6' },
+  lever: { label: 'Lever sieste', color: '#EC4899' },
+  sieste: { label: 'Mise Sieste', color: '#8B5CF6' },
   petitDejeuner: { label: 'Petit déjeuner', color: '#F59E0B' }
 }
 
@@ -410,6 +419,13 @@ const getActivityLabel = (activity) => {
 const getCoucherGroupChip = (groupe) => {
   if (groupe === 'HELIOS') return '🌙 Hélios · 18:30–19:30'
   if (groupe === 'GRANDE_SALLE') return '🍽️ Gde Salle · 19:30–20:30'
+  return ''
+}
+
+const getWCGroupChip = (groupe) => {
+  if (groupe === 'WC_13H') return '🕐 WC 13H · 13:00'
+  if (groupe === 'WC_16H') return '🕓 WC 16H · 16:00'
+  if (groupe === 'WC_13H_ET_16H') return '🕐🕓 13H & 16H'
   return ''
 }
 
@@ -666,7 +682,7 @@ const downloadPDF = async () => {
     const commentRows = []
     const activityLabels = {
       douche: 'Douche', toilette: 'Toilette', wc: 'WC', coucher: 'Coucher',
-      lever: 'Lever', sieste: 'Sieste', repas: 'Repas', petitDejeuner: 'Petit déjeuner'
+      lever: 'Lever sieste', sieste: 'Mise Sieste', repas: 'Repas', petitDejeuner: 'Petit déjeuner'
     }
 
     patients.value.forEach(patient => {
@@ -1101,6 +1117,24 @@ const downloadPDF = async () => {
   background: rgba(139, 92, 246, 0.15);
   color: #4C1D95;
   border: 1px solid rgba(139, 92, 246, 0.35);
+}
+
+.wc-WC_13H {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1E40AF;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.wc-WC_16H {
+  background: rgba(16, 185, 129, 0.15);
+  color: #065F46;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.wc-WC_13H_ET_16H {
+  background: rgba(245, 158, 11, 0.15);
+  color: #78350F;
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .activity-repas {

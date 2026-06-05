@@ -111,6 +111,28 @@
           </div>
         </div>
 
+        <!-- Section WC -->
+        <div class="form-section">
+          <div class="section-label">
+            <span class="section-icon">🚽</span> Groupe WC
+          </div>
+          <div class="coucher-options">
+            <label
+              v-for="opt in wcOptions"
+              :key="opt.value"
+              class="coucher-option"
+              :class="{ 'is-selected': formData.groupeWC === opt.value }"
+            >
+              <input type="radio" v-model="formData.groupeWC" :value="opt.value" class="sr-only" />
+              <span class="option-icon">{{ opt.icon }}</span>
+              <div>
+                <div class="option-label">{{ opt.label }}</div>
+                <div class="option-time">{{ opt.time }}</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <!-- Section Temps de soins -->
         <div class="form-section">
           <div class="section-label">
@@ -126,8 +148,8 @@
               <input v-model.number="formData.tempsToiletteVasque" type="number" min="0" />
             </div>
             <div class="form-group">
-              <label>Toilette moyen</label>
-              <input v-model.number="formData.tempsToiletteMoyen" type="number" min="0" />
+              <label>Toilette moyen <span class="calc-badge">auto</span></label>
+              <div class="calc-display">{{ tempsToiletteMoyenCalc }} min</div>
             </div>
             <div class="form-group">
               <label>WC moyen</label>
@@ -180,7 +202,9 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { PATIENT_PROFILS, COUCHER_OPTIONS } from '@/constants/patientConfig.js'
+
+
+import { PATIENT_PROFILS, COUCHER_OPTIONS, WC_OPTIONS } from '@/constants/patientConfig.js'
 import apiClient from '@/api/client.js'
 
 const props = defineProps({
@@ -200,6 +224,15 @@ const profilListe = computed(() =>
 )
 
 const coucherOptions = COUCHER_OPTIONS
+const wcOptions = WC_OPTIONS
+
+// Temps toilette moyen calculé automatiquement
+const tempsToiletteMoyenCalc = computed(() => {
+  const lit = formData.value.tempsToiletteLit || 0
+  const vasque = formData.value.tempsToiletteVasque || 0
+  if (lit === 0 && vasque === 0) return 0
+  return Math.round((lit + vasque) / 2)
+})
 
 const emptyForm = () => ({
   numeroChambre: '',
@@ -211,13 +244,13 @@ const emptyForm = () => ({
   profil: '',
   tempsToiletteLit: 30,
   tempsToiletteVasque: 30,
-  tempsToiletteMoyen: 30,
   tempsWcMoyen: 30,
   tempsCoucherMoyen: 30,
   aideSoignant: false,
   petitDejeunerAide: false,
   sansDouche: false,
-  groupeCoucher: 'NON_DEFINI'
+  groupeCoucher: 'NON_DEFINI',
+  groupeWC: 'NON_DEFINI'
 })
 
 const formData = ref(emptyForm())
@@ -235,13 +268,13 @@ watch(() => props.isOpen, (open) => {
       profil: props.patient.profil || '',
       tempsToiletteLit: props.patient.tempsToiletteLit ?? 30,
       tempsToiletteVasque: props.patient.tempsToiletteVasque ?? 30,
-      tempsToiletteMoyen: props.patient.tempsToiletteMoyen ?? 30,
       tempsWcMoyen: props.patient.tempsWcMoyen ?? 30,
       tempsCoucherMoyen: props.patient.tempsCoucherMoyen ?? 30,
       aideSoignant: props.patient.aideSoignant ?? false,
       petitDejeunerAide: props.patient.petitDejeunerAide ?? false,
       sansDouche: props.patient.sansDouche ?? false,
-      groupeCoucher: props.patient.groupeCoucher || 'NON_DEFINI'
+      groupeCoucher: props.patient.groupeCoucher || 'NON_DEFINI',
+      groupeWC: props.patient.groupeWC || 'NON_DEFINI'
     }
   } else if (open && !props.patient) {
     formData.value = emptyForm()
@@ -269,13 +302,14 @@ const submitForm = async () => {
     profil: formData.value.profil || undefined,
     tempsToiletteLit: formData.value.tempsToiletteLit || undefined,
     tempsToiletteVasque: formData.value.tempsToiletteVasque || undefined,
-    tempsToiletteMoyen: formData.value.tempsToiletteMoyen || undefined,
+    tempsToiletteMoyen: tempsToiletteMoyenCalc.value || undefined,
     tempsWcMoyen: formData.value.tempsWcMoyen || undefined,
     tempsCoucherMoyen: formData.value.tempsCoucherMoyen || undefined,
     aideSoignant: formData.value.aideSoignant,
     petitDejeunerAide: formData.value.petitDejeunerAide,
     sansDouche: formData.value.sansDouche,
-    groupeCoucher: formData.value.groupeCoucher || 'NON_DEFINI'
+    groupeCoucher: formData.value.groupeCoucher || 'NON_DEFINI',
+    groupeWC: formData.value.groupeWC || 'NON_DEFINI'
   }
 
   try {
@@ -462,6 +496,30 @@ const submitForm = async () => {
 
 .required {
   color: #EF4444;
+}
+
+.calc-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: #DBEAFE;
+  color: #1D4ED8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.calc-display {
+  padding: 9px 12px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563EB;
+  background: #F0F9FF;
 }
 
 .form-group input,

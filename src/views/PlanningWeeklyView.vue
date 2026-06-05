@@ -114,6 +114,37 @@
       </button>
     </div>
 
+    <!-- Onglets sous-groupes WC -->
+    <div v-if="selectedActivity === 'wc'" class="coucher-tabs">
+      <button
+        class="coucher-tab"
+        :class="{ 'is-active': wcTab === 'WC_13H' }"
+        @click="wcTab = 'WC_13H'"
+      >
+        🕐 WC 13H
+        <span class="coucher-tab-time">13:00</span>
+        <span class="coucher-tab-count">{{ countGroupeWC('WC_13H') }} patients</span>
+      </button>
+      <button
+        class="coucher-tab"
+        :class="{ 'is-active': wcTab === 'WC_16H' }"
+        @click="wcTab = 'WC_16H'"
+      >
+        🕓 WC 16H
+        <span class="coucher-tab-time">16:00</span>
+        <span class="coucher-tab-count">{{ countGroupeWC('WC_16H') }} patients</span>
+      </button>
+      <button
+        class="coucher-tab"
+        :class="{ 'is-active': wcTab === 'WC_13H_ET_16H' }"
+        @click="wcTab = 'WC_13H_ET_16H'"
+      >
+        🕐🕓 13H et 16H
+        <span class="coucher-tab-time">13:00 & 16:00</span>
+        <span class="coucher-tab-count">{{ countGroupeWC('WC_13H_ET_16H') }} patients</span>
+      </button>
+    </div>
+
     <div class="planning-grid-card">
       <div class="planning-grid">
         <div class="grid-header">
@@ -243,13 +274,14 @@ const activitiesConfig = ref({
   douche:        { icon: '🛁', label: 'Douche',         color: '#3B82F6' },
   toilette:      { icon: '🚿', label: 'Toilette',       color: '#06B6D4' },
   wc:            { icon: '🚽', label: 'Mise WC',        color: '#8B5CF6' },
-  lever:         { icon: '⬆️', label: 'Lever',          color: '#EC4899' },
-  sieste:        { icon: '😴', label: 'Sieste',         color: '#64748B' },
+  lever:         { icon: '⬆️', label: 'Lever sieste',   color: '#EC4899' },
+  sieste:        { icon: '😴', label: 'Mise Sieste',    color: '#64748B' },
   coucher:       { icon: '🌙', label: 'Coucher',        color: '#F59E0B' },
 })
 
 // Sous-onglet actif pour le coucher
 const coucherTab = ref('HELIOS') // 'HELIOS' | 'GRANDE_SALLE'
+const wcTab = ref('WC_13H') // 'WC_13H' | 'WC_16H' | 'WC_13H_ET_16H'
 
 const joursSemaine = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
 const jours = computed(() => {
@@ -272,6 +304,9 @@ const getASColor = (code) => aidesSoignants.value.find(a => a.code === code)?.co
 
 const countGroupeCoucher = (groupe) =>
   patients.value.filter(p => p.groupeCoucher === groupe).length
+
+const countGroupeWC = (groupe) =>
+  patients.value.filter(p => (p.groupeWC || 'NON_DEFINI') === groupe).length
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -480,11 +515,12 @@ const patientsFiltres = computed(() => {
       return false
     }
 
-    // Filtre par groupe coucher quand l'activité coucher est sélectionnée
     if (selectedActivity.value === 'coucher') {
-      if ((patient.groupeCoucher || 'NON_DEFINI') !== coucherTab.value) {
-        return false
-      }
+      if ((patient.groupeCoucher || 'NON_DEFINI') !== coucherTab.value) return false
+    }
+
+    if (selectedActivity.value === 'wc') {
+      if ((patient.groupeWC || 'NON_DEFINI') !== wcTab.value) return false
     }
 
     return true
@@ -584,6 +620,36 @@ const handleAssign = async (data) => {
     }
   } catch (e) {
     console.error('Erreur sauvegarde:', e)
+  }
+
+  // Duplication sur les autres jours sélectionnés
+  for (const jourCopie of (data.joursCopie || [])) {
+    const existingCopie = planningByWeek.value[weekKey.value]?.[modalPatient.value.id]?.[jourCopie]?.[selectedActivity.value]
+    if (existingCopie) await deleteExecIds(existingCopie._execId || existingCopie._execIds)
+
+    if (!planningByWeek.value[weekKey.value][modalPatient.value.id]) planningByWeek.value[weekKey.value][modalPatient.value.id] = {}
+    if (!planningByWeek.value[weekKey.value][modalPatient.value.id][jourCopie]) planningByWeek.value[weekKey.value][modalPatient.value.id][jourCopie] = {}
+
+    const dateStrCopie = getDateStr(jourCopie)
+    try {
+      if (data.type === 'shared') {
+        const moment = data.moment || 'matin'
+        const [ec1, ec2] = await Promise.all([
+          postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[0]), secondAideSoignantId: getAideSoignantId(data.ases[1]), dateExecution: dateStrCopie, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[0]} min`, notesSoignant: data.notesSoignant || null }),
+          postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.ases[1]), secondAideSoignantId: getAideSoignantId(data.ases[0]), dateExecution: dateStrCopie, heureExecution: getMomentAsHeure(moment), statut: 'PLANIFIE', commentaire: `Durée: ${data.durees[1]} min`, notesSoignant: data.notesSoignant || null })
+        ])
+        planningByWeek.value[weekKey.value][modalPatient.value.id][jourCopie][selectedActivity.value] = {
+          type: 'shared', ases: data.ases, durees: data.durees.map(d => +d), moment, _execIds: [ec1.id, ec2.id], notesSoignant: data.notesSoignant || null
+        }
+      } else {
+        const exec = await postExec({ patientId: modalPatient.value.id, typeSoinId, aideSoignantId: getAideSoignantId(data.as), dateExecution: dateStrCopie, heureExecution: getMomentAsHeure(data.moment || 'matin'), statut: 'PLANIFIE', commentaire: `Durée: ${data.duree || 30} min`, notesSoignant: data.notesSoignant || null })
+        planningByWeek.value[weekKey.value][modalPatient.value.id][jourCopie][selectedActivity.value] = {
+          as: data.as, duree: +(data.duree || 30), moment: data.moment || 'matin', _execId: exec.id, notesSoignant: data.notesSoignant || null
+        }
+      }
+    } catch (e) {
+      console.error(`Erreur duplication vers ${jourCopie}:`, e)
+    }
   }
 
   closeModal()

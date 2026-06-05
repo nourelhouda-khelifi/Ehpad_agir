@@ -113,7 +113,6 @@ import { ref, computed, onMounted } from 'vue'
 
 import { useAidesSoignants } from '@/composables/useAidesSoignants.js'
 import apiClient from '@/api/client.js'
-import { useAideSoignantCharge } from '@/composables/useAideSoignantCharge.js'
 import { getCurrentWeekMonday, getISOWeekNumber, getDayIndexInCurrentWeek } from '@/utils/dateUtils.js'
 
 import ASCard from '@/components/aides/ASCard.vue'
@@ -127,9 +126,6 @@ const currentMondayStr = getCurrentWeekMonday()
 
 // Composable pour charger les aides-soignants depuis l'API
 const { aidesSoignants, loadAidesSoignants, deleteAideSoignant } = useAidesSoignants()
-
-// Composable pour charger la charge d'un AS
-const { plannings, chargeParJour, patientCount, loadChargeForAideSoignant } = useAideSoignantCharge()
 
 const chargeJour = ref({})
 const chargeJourPeriode = ref({})
@@ -322,45 +318,31 @@ const recommandation = computed(() => {
   }
 })
 
-const openDetail = async (as) => {
+const openDetail = (as) => {
   modalAS.value = as
-  
-  // Charger la charge réelle depuis l'API
-  try {
-    await loadChargeForAideSoignant(as.id)
-    
-    // Construire modalChargeJour à partir des données réelles
-    const chargeByDay = {}
-    const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-    days.forEach(day => {
-      chargeByDay[day] = chargeParJour.value[day] || 0
-    })
-    modalChargeJour.value = chargeByDay
-    
-    // Récupérer les patients uniques du planning
-    const patients = new Map()
-    plannings.value.forEach(planning => {
-      if (planning.patientId && !patients.has(planning.patientId)) {
-        patients.set(planning.patientId, {
-          id: planning.patientId,
-          nom: planning.patientNom || `Patient ${planning.patientId}`,
-          chambre: planning.patientChambre || '-',
-          soinsParSemaine: 0
-        })
-      }
-    })
-    
-    // Compter les soins par patient
-    plannings.value.forEach(planning => {
-      if (planning.patientId && patients.has(planning.patientId)) {
-        patients.get(planning.patientId).soinsParSemaine++
-      }
-    })
-    
-    modalPatients.value = Array.from(patients.values())
-  } catch (err) {
-    console.error('Erreur lors du chargement de la charge:', err)
+
+  // Charge par jour — utilise chargeJour déjà calculé depuis les executions
+  // Les clés sont 'lundi','mardi'... comme attendu par ASDetailModal.jourLabel
+  modalChargeJour.value = chargeJour.value[as.code] || {
+    lundi: 0, mardi: 0, mercredi: 0, jeudi: 0, vendredi: 0, samedi: 0, dimanche: 0
   }
+
+  // Patients — depuis les executions dédupliquées de la semaine
+  const patientsMap = new Map()
+  getDeduplicatedExecs(executions.value, as.code).forEach(({ exec }) => {
+    const patientId = exec.patientId
+    if (!patientsMap.has(patientId)) {
+      const p = aidesSoignants.value  // fallback si patients pas chargés séparément
+      // chercher dans les exécutions les infos patient
+      const nom = exec.patient
+        ? `${exec.patient.prenom || ''} ${exec.patient.nom || ''}`.trim()
+        : `Patient ${patientId}`
+      const chambre = exec.patient?.numeroChambre || '-'
+      patientsMap.set(patientId, { id: patientId, nom, chambre, soinsParSemaine: 0 })
+    }
+    patientsMap.get(patientId).soinsParSemaine++
+  })
+  modalPatients.value = Array.from(patientsMap.values())
 }
 
 const openAbsencesModal = () => {
